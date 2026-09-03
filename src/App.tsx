@@ -54,6 +54,13 @@ export const App: React.FC = () => {
   const [strategyData, setStrategyData] = useState<StrategyResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Stabilized instrument IDs serialization to prevent recalculation on spot or price edits
+  const legsFingerprint = useMemo(() => {
+    return legs
+      .map((l) => `${toSegmentNumber(l.exchange_segment)}_${l.exchange_instrument_id}`)
+      .join(',');
+  }, [legs]);
+
   // Gather all active instruments for pre-validation market data subscription
   const marketInstruments = useMemo<InstrumentSubscriptionItem[]>(() => {
     const list: InstrumentSubscriptionItem[] = [];
@@ -74,7 +81,7 @@ export const App: React.FC = () => {
       }
     }
     return list;
-  }, [underlying, legs]);
+  }, [underlying.exchange_segment, underlying.exchange_instrument_id, legsFingerprint]);
 
   // 1. Pre-Validation Market Data WebSocket Hook (Symphony /ws)
   const { livePrices: marketDataLivePrices } = useMarketDataWebSocket({

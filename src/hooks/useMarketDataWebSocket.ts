@@ -107,12 +107,13 @@ export function useMarketDataWebSocket({
   const [error, setError] = useState<string | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
+  const isManualCloseRef = useRef(false);
   const reconnectTimeoutRef = useRef<any>(null);
   const pingIntervalRef = useRef<any>(null);
   const subscribedMapRef = useRef<Map<string, InstrumentSubscriptionItem>>(new Map());
   const debounceTimerRef = useRef<any>(null);
 
-  // Filter valid instruments
+  // Filter and deduplicate valid instruments
   const validInstruments = useMemo(() => {
     const map = new Map<string, InstrumentSubscriptionItem>();
     for (const inst of instruments) {
@@ -125,6 +126,14 @@ export function useMarketDataWebSocket({
     }
     return Array.from(map.values());
   }, [instruments]);
+
+  // Stable fingerprint of subscribed instruments to prevent unnecessary REST calls
+  const instrumentsFingerprint = useMemo(() => {
+    return validInstruments
+      .map((i) => `${i.exchangeSegment}_${i.exchangeInstrumentID}`)
+      .sort()
+      .join(',');
+  }, [validInstruments]);
 
   // Construct WebSocket Endpoint URL
   const wsEndpoint = useMemo(() => {
@@ -156,30 +165,39 @@ export function useMarketDataWebSocket({
     }
   }, [marketWsUrl, apiUrl, userId, token]);
 
-  // Connect WebSocket
+  // Connect WebSocket (Persistent connection matching Strategy WebSocket)
   const connect = useCallback(() => {
     if (!enabled || !token) {
       setStatus('disconnected');
       return;
     }
 
+    // Mark previous socket close as intentional to avoid cascading reconnect timers
     if (socketRef.current) {
+      isManualCloseRef.current = true;
       socketRef.current.close();
       socketRef.current = null;
+    }
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
 
     setStatus('connecting');
     setError(null);
 
     try {
+      isManualCloseRef.current = false;
       const ws = new WebSocket(wsEndpoint);
       socketRef.current = ws;
 
       ws.onopen = () => {
         setStatus('connected');
         setError(null);
+        isManualCloseRef.current = false;
 
-        // Send ping heartbeat every 15 seconds
+        // Start single ping heartbeat every 15s
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
@@ -218,8 +236,8 @@ export function useMarketDataWebSocket({
         setStatus('disconnected');
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
 
-        // Auto reconnect after 3 seconds if enabled and token present
-        if (enabled && token) {
+        // Auto reconnect ONLY on unexpected disconnect (network drop), NOT on intentional unmount/close
+        if (!isManualCloseRef.current && enabled && token) {
           if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
@@ -232,10 +250,11 @@ export function useMarketDataWebSocket({
     }
   }, [enabled, token, wsEndpoint]);
 
-  // Auto-connect on mount / token change
+  // Auto-connect once on mount / token change
   useEffect(() => {
     connect();
     return () => {
+      isManualCloseRef.current = true;
       if (socketRef.current) {
         socketRef.current.close();
         socketRef.current = null;
@@ -247,7 +266,7 @@ export function useMarketDataWebSocket({
 
   // Reconcile and sync subscriptions (subscribing new & unsubscribing removed instruments)
   const syncSubscriptions = useCallback(async () => {
-    if (!token) return;
+    if (!token || validInstruments.length === 0 && subscribedMapRef.current.size === 0) return;
 
     const currentMap = new Map<string, InstrumentSubscriptionItem>();
     for (const inst of validInstruments) {
@@ -302,7 +321,7 @@ export function useMarketDataWebSocket({
     }
   }, [token, validInstruments]);
 
-  // Debounced subscription reconciliation whenever valid instruments change
+  // Debounced subscription reconciliation ONLY when actual instrument IDs change
   useEffect(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -319,7 +338,7 @@ export function useMarketDataWebSocket({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [validInstruments, token, syncSubscriptions]);
+  }, [instrumentsFingerprint, token, syncSubscriptions]);
 
   return {
     status,
