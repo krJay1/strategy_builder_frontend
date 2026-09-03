@@ -1,6 +1,6 @@
 import React from 'react';
 import { MarginResult } from '../types/strategy';
-import { Landmark, ShieldCheck, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Landmark, ShieldCheck, Wallet, AlertCircle } from 'lucide-react';
 
 interface MarginCardProps {
   margin?: MarginResult;
@@ -15,7 +15,6 @@ export const MarginCard: React.FC<MarginCardProps> = ({ margin }) => {
   };
 
   const hasShortfall = (margin.margin_shortfall || 0) > 0;
-  const isSufficient = margin.available_margin !== undefined && margin.available_margin >= margin.required;
 
   return (
     <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-4 shadow-sm space-y-3">
@@ -38,13 +37,13 @@ export const MarginCard: React.FC<MarginCardProps> = ({ margin }) => {
           {/* Primary Capital Status Cards (Required, Available, Shortfall) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
             {/* 1. Required Margin */}
-            <div className="bg-[#141619] border border-emerald-500/30 rounded-lg p-3 relative overflow-hidden">
+            <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-semibold flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Required Margin
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Required Margin
                 </span>
               </div>
-              <div className="text-base font-bold font-mono text-emerald-300 mt-1">
+              <div className="text-base font-bold font-mono text-slate-100 mt-1">
                 {fmt(margin.required)}
               </div>
               <div className="text-[10px] text-slate-500 mt-0.5">Total funds needed to execute</div>
@@ -53,20 +52,9 @@ export const MarginCard: React.FC<MarginCardProps> = ({ margin }) => {
             {/* 2. Available Margin */}
             <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold flex items-center gap-1">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold flex items-center gap-1.5">
                   <Wallet className="w-3.5 h-3.5 text-cyan-400" /> Available Margin
                 </span>
-                {margin.available_margin !== undefined && (
-                  <span
-                    className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase ${
-                      isSufficient
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-slate-800 text-slate-400'
-                    }`}
-                  >
-                    {isSufficient ? 'Sufficient' : 'Low Funds'}
-                  </span>
-                )}
               </div>
               <div className="text-base font-bold font-mono text-slate-100 mt-1">
                 {fmt(margin.available_margin)}
@@ -75,37 +63,13 @@ export const MarginCard: React.FC<MarginCardProps> = ({ margin }) => {
             </div>
 
             {/* 3. Margin Shortfall */}
-            <div
-              className={`rounded-lg p-3 border ${
-                hasShortfall
-                  ? 'bg-rose-500/10 border-rose-500/30'
-                  : 'bg-[#141619] border-[#282d34]'
-              }`}
-            >
+            <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3">
               <div className="flex items-center justify-between">
-                <span
-                  className={`text-[10px] uppercase tracking-wider font-semibold flex items-center gap-1 ${
-                    hasShortfall ? 'text-rose-400' : 'text-slate-400'
-                  }`}
-                >
-                  {hasShortfall ? (
-                    <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
-                  ) : (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  )}
-                  Margin Shortfall
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold flex items-center gap-1.5">
+                  <AlertCircle className={`w-3.5 h-3.5 ${hasShortfall ? 'text-rose-400' : 'text-amber-400/80'}`} /> Margin Shortfall
                 </span>
-                {hasShortfall && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 uppercase">
-                    Action Required
-                  </span>
-                )}
               </div>
-              <div
-                className={`text-base font-bold font-mono mt-1 ${
-                  hasShortfall ? 'text-rose-400' : 'text-slate-200'
-                }`}
-              >
+              <div className="text-base font-bold font-mono text-slate-100 mt-1">
                 {fmt(margin.margin_shortfall || 0)}
               </div>
               <div className="text-[10px] text-slate-500 mt-0.5">
