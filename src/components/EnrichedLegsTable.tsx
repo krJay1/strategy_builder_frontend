@@ -14,11 +14,16 @@ export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
 
   return (
     <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-4 shadow-sm">
-      <div className="flex items-center gap-2 mb-3">
-        <Table className="w-4 h-4 text-indigo-400" />
-        <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-          Enriched Contracts & Greeks Breakdown
-        </h3>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2">
+          <Table className="w-4 h-4 text-indigo-400" />
+          <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+            Enriched Contracts & Greeks Breakdown
+          </h3>
+        </div>
+        <span className="text-[10px] font-mono text-slate-400 bg-[#141619] px-2 py-0.5 rounded border border-[#282d34]">
+          Greeks per 1 Share (Unit)
+        </span>
       </div>
 
       <div className="overflow-x-auto">
@@ -32,10 +37,10 @@ export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
               <th className="pb-2.5 font-semibold">Strike</th>
               <th className="pb-2.5 font-semibold">Qty</th>
               <th className="pb-2.5 font-semibold">IV %</th>
-              <th className="pb-2.5 font-semibold">Delta</th>
-              <th className="pb-2.5 font-semibold">Gamma</th>
-              <th className="pb-2.5 font-semibold">Theta</th>
-              <th className="pb-2.5 font-semibold">Vega</th>
+              <th className="pb-2.5 font-semibold" title="Delta per 1 share">Delta (Unit)</th>
+              <th className="pb-2.5 font-semibold" title="Gamma per 1 share">Gamma (Unit)</th>
+              <th className="pb-2.5 font-semibold text-rose-300" title="Theta decay per 1 share per day">Theta (₹/share)</th>
+              <th className="pb-2.5 font-semibold text-cyan-300" title="Vega sensitivity per 1 share">Vega (₹/share)</th>
               <th className="pb-2.5 text-right font-semibold pr-2">Cash Flow / P&L</th>
             </tr>
           </thead>
