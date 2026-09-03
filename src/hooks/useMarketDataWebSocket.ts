@@ -109,7 +109,7 @@ export function useMarketDataWebSocket({
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<any>(null);
   const pingIntervalRef = useRef<any>(null);
-  const lastSubscribedKeyRef = useRef<string>('');
+  const subscribedMapRef = useRef<Map<string, InstrumentSubscriptionItem>>(new Map());
   const debounceTimerRef = useRef<any>(null);
 
   // Filter valid instruments
@@ -245,40 +245,72 @@ export function useMarketDataWebSocket({
     };
   }, [connect]);
 
-  // Send HTTP Instrument Subscription to Symphony
-  const subscribeInstruments = useCallback(async () => {
-    if (!token || validInstruments.length === 0) return;
+  // Reconcile and sync subscriptions (subscribing new & unsubscribing removed instruments)
+  const syncSubscriptions = useCallback(async () => {
+    if (!token) return;
 
-    const currentKey = validInstruments
-      .map((i) => `${i.exchangeSegment}:${i.exchangeInstrumentID}`)
-      .sort()
-      .join(',');
+    const currentMap = new Map<string, InstrumentSubscriptionItem>();
+    for (const inst of validInstruments) {
+      currentMap.set(`${inst.exchangeSegment}_${inst.exchangeInstrumentID}`, inst);
+    }
 
-    if (currentKey === lastSubscribedKeyRef.current) {
-      return; // Already subscribed to this exact instrument set
+    const prevMap = subscribedMapRef.current;
+
+    // 1. Identify removed instruments that require unsubscription (PUT)
+    const toUnsubscribe: InstrumentSubscriptionItem[] = [];
+    for (const [key, inst] of prevMap.entries()) {
+      if (!currentMap.has(key)) {
+        toUnsubscribe.push(inst);
+      }
+    }
+
+    // 2. Identify new instruments that require subscription (POST)
+    const toSubscribe: InstrumentSubscriptionItem[] = [];
+    for (const [key, inst] of currentMap.entries()) {
+      if (!prevMap.has(key)) {
+        toSubscribe.push(inst);
+      }
+    }
+
+    if (toUnsubscribe.length === 0 && toSubscribe.length === 0) {
+      return;
     }
 
     setIsSubscribing(true);
+
     try {
-      await strategyApi.subscribeMarketData(validInstruments);
-      lastSubscribedKeyRef.current = currentKey;
+      // Execute unsubscriptions via PUT
+      if (toUnsubscribe.length > 0) {
+        await strategyApi.unsubscribeMarketData(toUnsubscribe);
+        for (const inst of toUnsubscribe) {
+          prevMap.delete(`${inst.exchangeSegment}_${inst.exchangeInstrumentID}`);
+        }
+      }
+
+      // Execute new subscriptions via POST
+      if (toSubscribe.length > 0) {
+        await strategyApi.subscribeMarketData(toSubscribe);
+        for (const inst of toSubscribe) {
+          prevMap.set(`${inst.exchangeSegment}_${inst.exchangeInstrumentID}`, inst);
+        }
+      }
     } catch (err: any) {
-      console.warn('Pre-validation market data subscription failed:', err.message);
-      notify.apiError('Pre-Subscription Warning', err);
+      console.warn('Market data subscription sync warning:', err.message);
+      notify.apiError('Market Subscription Sync', err);
     } finally {
       setIsSubscribing(false);
     }
   }, [token, validInstruments]);
 
-  // Debounced subscription trigger whenever valid instruments change
+  // Debounced subscription reconciliation whenever valid instruments change
   useEffect(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
 
-    if (validInstruments.length > 0 && token) {
+    if (token) {
       debounceTimerRef.current = setTimeout(() => {
-        subscribeInstruments();
+        syncSubscriptions();
       }, 350);
     }
 
@@ -287,7 +319,7 @@ export function useMarketDataWebSocket({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [validInstruments, token, subscribeInstruments]);
+  }, [validInstruments, token, syncSubscriptions]);
 
   return {
     status,
@@ -295,6 +327,6 @@ export function useMarketDataWebSocket({
     isSubscribing,
     error,
     reconnect: connect,
-    resubscribe: subscribeInstruments,
+    resubscribe: syncSubscriptions,
   };
 }

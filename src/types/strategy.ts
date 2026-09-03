@@ -108,10 +108,16 @@ export interface PayoffResult {
   payoff_at_expiry: PayoffPoint[];
   payoff_at_target: PayoffPoint[];
   break_evens: (number | BreakEven)[];
+  breakevens_at_target?: (number | BreakEven)[];
+  projected_payoff?: number;
+  standard_deviation?: number;
+  strategy_name?: string;
+  total_intrinsic_value?: number;
+  total_time_value?: number;
   max_profit: number | null;
   max_loss: number | null;
   risk_reward: string;
-  pop: number; // Probability of profit (0 to 1)
+  pop: number; // Probability of profit
   grid?: {
     from: number;
     to: number;

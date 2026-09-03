@@ -9,7 +9,6 @@ interface EnrichedLegsTableProps {
 
 export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
   legs,
-  livePrices = {},
 }) => {
   if (!legs || legs.length === 0) return null;
 
@@ -32,18 +31,17 @@ export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
               <th className="pb-2.5 font-semibold">Expiry</th>
               <th className="pb-2.5 font-semibold">Strike</th>
               <th className="pb-2.5 font-semibold">Qty</th>
-              <th className="pb-2.5 font-semibold">Entry Px</th>
-              <th className="pb-2.5 font-semibold">LTP</th>
               <th className="pb-2.5 font-semibold">IV %</th>
               <th className="pb-2.5 font-semibold">Delta</th>
+              <th className="pb-2.5 font-semibold">Gamma</th>
               <th className="pb-2.5 font-semibold">Theta</th>
+              <th className="pb-2.5 font-semibold">Vega</th>
               <th className="pb-2.5 text-right font-semibold pr-2">Cash Flow / P&L</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#262a31] font-mono">
             {legs.map((leg, idx) => {
               const isBuy = leg.side === 'BUY';
-              const livePrice = livePrices[leg.exchange_instrument_id] || leg.ltp || leg.price;
               const legCashFlow = leg.premium !== undefined ? leg.premium : (leg.pnl !== undefined ? leg.pnl : 0);
 
               return (
@@ -85,12 +83,6 @@ export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
                       ({leg.lots} {leg.lot_size ? `× ${leg.lot_size}` : 'lots'})
                     </span>
                   </td>
-                  <td className="py-2.5 text-slate-300">
-                    ₹{leg.entry_price?.toFixed(2) || '0.00'}
-                  </td>
-                  <td className="py-2.5 text-cyan-300 font-bold">
-                    {livePrice ? `₹${livePrice.toFixed(2)}` : '—'}
-                  </td>
                   <td className="py-2.5 text-amber-300">
                     {leg.iv_percent ? `${leg.iv_percent.toFixed(1)}%` : '—'}
                   </td>
@@ -101,8 +93,14 @@ export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
                   >
                     {leg.greeks?.delta !== undefined ? leg.greeks.delta.toFixed(3) : '—'}
                   </td>
+                  <td className="py-2.5 text-purple-400">
+                    {leg.greeks?.gamma !== undefined ? leg.greeks.gamma.toFixed(4) : '—'}
+                  </td>
                   <td className="py-2.5 text-rose-400">
-                    {leg.greeks?.theta !== undefined ? `₹${leg.greeks.theta.toFixed(1)}` : '—'}
+                    {leg.greeks?.theta !== undefined ? leg.greeks.theta.toFixed(2) : '—'}
+                  </td>
+                  <td className="py-2.5 text-cyan-400">
+                    {leg.greeks?.vega !== undefined ? leg.greeks.vega.toFixed(2) : '—'}
                   </td>
                   <td
                     className={`py-2.5 text-right font-bold pr-2 ${

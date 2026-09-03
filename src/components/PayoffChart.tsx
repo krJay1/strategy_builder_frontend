@@ -303,7 +303,8 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({ payoff, spotPrice, gre
           {/* Probability of Profit Badge */}
           {payoff.pop !== undefined && payoff.pop > 0 && (
             <span className="hidden sm:flex items-center gap-1 text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/25">
-              <Percent className="w-3 h-3" /> POP: {(payoff.pop * 100).toFixed(1)}%
+              <Percent className="w-3 h-3" /> POP:{' '}
+              {(payoff.pop <= 1 ? payoff.pop * 100 : payoff.pop).toFixed(1)}%
             </span>
           )}
         </div>

@@ -70,7 +70,9 @@ export const SummaryMetrics: React.FC<SummaryMetricsProps> = ({ payoff }) => {
           <Percent className="w-3.5 h-3.5 text-amber-400" />
         </div>
         <div className="text-base font-bold font-mono text-amber-300">
-          {payoff.pop > 0 ? `${(payoff.pop * 100).toFixed(1)}%` : '—'}
+          {payoff.pop > 0
+            ? `${(payoff.pop <= 1 ? payoff.pop * 100 : payoff.pop).toFixed(1)}%`
+            : '—'}
         </div>
       </div>
 

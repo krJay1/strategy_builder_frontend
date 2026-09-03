@@ -71,51 +71,74 @@ export const UnderlyingSection: React.FC<UnderlyingSectionProps> = ({
       </div>
 
       {/* Grid Inputs for Segment, Instrument ID, Spot & Target Date */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 text-xs">
-        {/* Segment */}
-        <div className="flex items-center gap-1.5 bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34]">
-          <span className="text-[10px] text-slate-400 uppercase font-semibold">Seg:</span>
-          <select
-            value={underlying.exchange_segment}
-            onChange={(e) =>
-              onChange({
-                ...underlying,
-                exchange_segment: Number(e.target.value),
-              })
-            }
-            className="bg-transparent text-xs text-slate-200 font-mono focus:outline-none cursor-pointer w-full"
-          >
-            <option value={1} className="bg-[#1e2124]">NSECM (1)</option>
-            <option value={2} className="bg-[#1e2124]">NSEFO (2)</option>
-            <option value={11} className="bg-[#1e2124]">BSECM (11)</option>
-            <option value={12} className="bg-[#1e2124]">BSEFO (12)</option>
-            <option value={51} className="bg-[#1e2124]">MCXFO (51)</option>
-          </select>
+      <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs items-center">
+        {/* 1. Exchange Segment */}
+        <div className="space-y-1">
+          <label className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider block">
+            Segment
+          </label>
+          <div className="bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34] focus-within:border-indigo-500/50 transition">
+            <select
+              value={underlying.exchange_segment}
+              onChange={(e) =>
+                onChange({
+                  ...underlying,
+                  exchange_segment: Number(e.target.value),
+                })
+              }
+              className="bg-transparent text-xs text-slate-200 font-mono focus:outline-none cursor-pointer w-full"
+            >
+              <option value={1} className="bg-[#1e2124]">NSECM (1)</option>
+              <option value={2} className="bg-[#1e2124]">NSEFO (2)</option>
+              <option value={11} className="bg-[#1e2124]">BSECM (11)</option>
+              <option value={12} className="bg-[#1e2124]">BSEFO (12)</option>
+              <option value={51} className="bg-[#1e2124]">MCXFO (51)</option>
+            </select>
+          </div>
         </div>
 
-        {/* Instrument ID */}
-        <div className="flex items-center gap-1.5 bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34]">
-          <Hash className="w-3 h-3 text-slate-500" />
-          <span className="text-[10px] text-slate-400 uppercase font-semibold">ID:</span>
-          <input
-            type="number"
-            value={underlying.exchange_instrument_id || ''}
-            onChange={(e) =>
-              onChange({
-                ...underlying,
-                exchange_instrument_id: Number(e.target.value),
-              })
-            }
-            placeholder="e.g. 26000"
-            className="bg-transparent text-xs text-slate-100 font-mono font-bold w-full focus:outline-none"
-          />
+        {/* 2. Instrument ID */}
+        <div className="space-y-1">
+          <label className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider flex items-center gap-1">
+            <Hash className="w-3 h-3 text-slate-500" />
+            <span>Instrument ID</span>
+          </label>
+          <div className="bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34] focus-within:border-indigo-500/50 transition">
+            <input
+              type="number"
+              value={underlying.exchange_instrument_id || ''}
+              onChange={(e) =>
+                onChange({
+                  ...underlying,
+                  exchange_instrument_id: Number(e.target.value),
+                })
+              }
+              placeholder="e.g. 26000"
+              className="bg-transparent text-xs text-slate-100 font-mono font-bold w-full focus:outline-none"
+            />
+          </div>
         </div>
 
-        {/* Spot Price with Live Feed Indicator */}
-        <div className="flex items-center justify-between gap-1.5 bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34]">
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="text-[10px] text-slate-400 uppercase font-semibold">Spot:</span>
+        {/* 3. Spot Price */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider flex items-center gap-1">
+              <TrendingUp className="w-3 h-3 text-emerald-400" />
+              <span>Spot</span>
+            </label>
+            {liveSpot !== undefined && liveSpot > 0 && (
+              <button
+                type="button"
+                onClick={() => onChange({ ...underlying, spot: liveSpot })}
+                title="Sync Spot with Live LTP"
+                className="flex items-center gap-1 text-[9px] font-mono font-bold text-cyan-300 bg-cyan-500/15 hover:bg-cyan-500/25 px-1.5 py-0.2 rounded border border-cyan-500/30 transition"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                ₹{liveSpot.toFixed(1)}
+              </button>
+            )}
+          </div>
+          <div className="bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34] focus-within:border-emerald-500/50 transition">
             <input
               type="number"
               step="any"
@@ -126,33 +149,26 @@ export const UnderlyingSection: React.FC<UnderlyingSectionProps> = ({
                   spot: Number(e.target.value),
                 })
               }
-              placeholder={liveSpot ? liveSpot.toFixed(2) : 'Spot'}
+              placeholder={liveSpot ? liveSpot.toFixed(2) : 'Spot Price'}
               className="bg-transparent text-xs text-emerald-300 font-bold font-mono w-full focus:outline-none"
             />
           </div>
-          {liveSpot !== undefined && liveSpot > 0 && (
-            <button
-              type="button"
-              onClick={() => onChange({ ...underlying, spot: liveSpot })}
-              title="Sync Spot with Live LTP"
-              className="shrink-0 flex items-center gap-1 text-[10px] font-mono font-bold text-cyan-300 bg-cyan-500/15 hover:bg-cyan-500/25 px-1.5 py-0.5 rounded border border-cyan-500/30 transition"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-              ₹{liveSpot.toFixed(1)}
-            </button>
-          )}
         </div>
 
-        {/* Target Date for T+N Payoff Curve */}
-        <div className="flex items-center gap-1.5 bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34]">
-          <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-          <span className="text-[10px] text-slate-400 uppercase font-semibold">Target:</span>
-          <input
-            type="date"
-            value={targetDate}
-            onChange={(e) => onTargetDateChange(e.target.value)}
-            className="bg-transparent text-xs text-slate-200 focus:outline-none cursor-pointer w-full font-mono text-[11px]"
-          />
+        {/* 4. Target Date */}
+        <div className="space-y-1">
+          <label className="text-[10px] text-amber-300 uppercase font-semibold tracking-wider" title="Simulate intermediate P&L before expiry">
+            Target Date (T+N)
+          </label>
+          <div className="bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34] focus-within:border-amber-500/50 transition">
+            <input
+              type="date"
+              value={targetDate}
+              onChange={(e) => onTargetDateChange(e.target.value)}
+              title="Target Date (T+N) for time decay simulation"
+              className="bg-transparent text-xs text-slate-200 focus:outline-none cursor-pointer w-full font-mono text-[11px]"
+            />
+          </div>
         </div>
       </div>
     </div>

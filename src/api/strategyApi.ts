@@ -84,10 +84,28 @@ export const strategyApi = {
   // POST /api/v1/symphony/apibinarymarketdata/instruments/subscription (Symphony Market Data Pre-Subscription)
   // Base URL: https://uat.firstdemat.in (or configured apiUrl)
   subscribeMarketData: async (instruments: InstrumentSubscriptionItem[]): Promise<any> => {
+    if (!instruments || instruments.length === 0) return;
     const creds = getStoredCredentials();
     const baseURL = creds.apiUrl?.trim() || 'https://uat.firstdemat.in';
     const client = createApiClient(baseURL);
     const res = await client.post<any>(
+      '/api/v1/symphony/apibinarymarketdata/instruments/subscription',
+      {
+        instruments,
+        xtsMessageCode: 1501,
+      }
+    );
+    return res.data;
+  },
+
+  // PUT /api/v1/symphony/apibinarymarketdata/instruments/subscription (Symphony Market Data Unsubscribe)
+  // Base URL: https://uat.firstdemat.in (or configured apiUrl)
+  unsubscribeMarketData: async (instruments: InstrumentSubscriptionItem[]): Promise<any> => {
+    if (!instruments || instruments.length === 0) return;
+    const creds = getStoredCredentials();
+    const baseURL = creds.apiUrl?.trim() || 'https://uat.firstdemat.in';
+    const client = createApiClient(baseURL);
+    const res = await client.put<any>(
       '/api/v1/symphony/apibinarymarketdata/instruments/subscription',
       {
         instruments,
