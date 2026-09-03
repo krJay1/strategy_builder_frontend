@@ -117,8 +117,8 @@ export const MarginCard: React.FC<MarginCardProps> = ({ margin }) => {
           </div>
 
           {/* Detailed RMS Component Breakdown */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
-            {/* Span Margin */}
+          {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
+            
             <div className="bg-[#141619] border border-[#282d34] rounded-lg p-2.5">
               <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
                 Span Margin
@@ -128,7 +128,7 @@ export const MarginCard: React.FC<MarginCardProps> = ({ margin }) => {
               </div>
             </div>
 
-            {/* Exposure Margin */}
+            
             <div className="bg-[#141619] border border-[#282d34] rounded-lg p-2.5">
               <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
                 Exposure Margin
@@ -138,7 +138,7 @@ export const MarginCard: React.FC<MarginCardProps> = ({ margin }) => {
               </div>
             </div>
 
-            {/* Hedge Benefit */}
+            
             <div className="bg-[#141619] border border-[#282d34] rounded-lg p-2.5">
               <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
                 Hedge Benefit
@@ -150,7 +150,7 @@ export const MarginCard: React.FC<MarginCardProps> = ({ margin }) => {
               </div>
             </div>
 
-            {/* Net Premium */}
+            
             <div className="bg-[#141619] border border-[#282d34] rounded-lg p-2.5">
               <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
                 Net Premium
@@ -163,7 +163,7 @@ export const MarginCard: React.FC<MarginCardProps> = ({ margin }) => {
                 {fmt(margin.net_premium)}
               </div>
             </div>
-          </div>
+          </div> */}
         </>
       )}
     </div>
