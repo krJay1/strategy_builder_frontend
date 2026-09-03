@@ -216,38 +216,6 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-[1700px] w-full mx-auto p-4 md:p-6 space-y-4">
-        {/* Live PnL Ribbon (when live stream is active) */}
-        {livePnL !== undefined && (
-          <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl px-4 py-2.5 flex items-center justify-between text-xs shadow-md">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span className="text-slate-400 font-semibold text-[11px] uppercase tracking-wider">Live Position:</span>
-              <span className="font-bold text-slate-200 font-mono">
-                {snapshot?.underlying?.name || 'Strategy'} (₹{currentSpot.toLocaleString('en-IN')})
-              </span>
-            </div>
-            <div className="flex items-center gap-5 font-mono">
-              <div>
-                <span className="text-slate-400 mr-1.5 text-[11px]">Unrealized P&L:</span>
-                <span className={`font-bold text-sm ${livePnL >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {livePnL >= 0 ? `+₹${livePnL.toLocaleString('en-IN')}` : `-₹${Math.abs(livePnL).toLocaleString('en-IN')}`}
-                </span>
-              </div>
-              {totalValue !== undefined && (
-                <div>
-                  <span className="text-slate-400 mr-1.5 text-[11px]">Value:</span>
-                  <span className="font-bold text-cyan-300">
-                    ₹{totalValue.toLocaleString('en-IN')}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Main 2-Column Responsive Workspace Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
           {/* LEFT COLUMN: Strategy Configuration & Margin */}
@@ -279,7 +247,13 @@ export const App: React.FC = () => {
           {/* RIGHT COLUMN: Payoff Chart on top & Analytics below */}
           <div className="lg:col-span-7 xl:col-span-7 space-y-4">
             {/* 1. Payoff Curve Chart (At the very top!) */}
-            <PayoffChart payoff={activePayoff} spotPrice={currentSpot} greeks={activeGreeks} />
+            <PayoffChart
+              payoff={activePayoff}
+              spotPrice={currentSpot}
+              greeks={activeGreeks}
+              livePnL={livePnL}
+              totalValue={totalValue}
+            />
 
             {/* 2. Summary Analytics Cards */}
             {activePayoff && <SummaryMetrics payoff={activePayoff} />}

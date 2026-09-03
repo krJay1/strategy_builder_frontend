@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, Layers, TrendingUp, Play, Zap } from 'lucide-react';
+import { Plus, Minus, Trash2, Layers, TrendingUp, Play, Zap } from 'lucide-react';
 import { LegRequest } from '../types/strategy';
 
 interface LegsBuilderProps {
@@ -119,6 +119,8 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
               {legs.map((leg, index) => {
                 const isBuy = leg.side === 'BUY';
                 const liveLtp = livePrices[leg.exchange_instrument_id];
+                const currentLots = leg.lots || 1;
+                const currentEntry = Number(leg.entry_price ?? leg.price ?? 0);
 
                 return (
                   <tr key={index} className="hover:bg-[#25282e]/50 transition">
@@ -176,17 +178,37 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
                       />
                     </td>
 
-                    {/* Lots */}
-                    <td className="py-2.5 w-20">
-                      <input
-                        type="number"
-                        min="1"
-                        value={leg.lots || 1}
-                        onChange={(e) =>
-                          handleUpdateLeg(index, 'lots', Math.max(1, Number(e.target.value)))
-                        }
-                        className="bg-[#141619] border border-[#2d3239] rounded-md px-2 py-1 text-slate-100 text-xs w-16 focus:outline-none focus:border-indigo-500"
-                      />
+                    {/* Lots Stepper (Decrement / Input / Increment) */}
+                    <td className="py-2.5 w-24">
+                      <div className="flex items-center bg-[#141619] border border-[#2d3239] rounded-md overflow-hidden w-20">
+                        <button
+                          type="button"
+                          disabled={disabled || currentLots <= 1}
+                          onClick={() => handleUpdateLeg(index, 'lots', Math.max(1, currentLots - 1))}
+                          className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
+                          title="Decrease Lot (-1)"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          value={currentLots}
+                          onChange={(e) =>
+                            handleUpdateLeg(index, 'lots', Math.max(1, Number(e.target.value)))
+                          }
+                          className="bg-transparent text-center text-slate-100 text-xs w-full focus:outline-none font-bold py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => handleUpdateLeg(index, 'lots', currentLots + 1)}
+                          className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
+                          title="Increase Lot (+1)"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
                     </td>
 
                     {/* Live LTP Display & 1-Click Sync */}
@@ -215,9 +237,21 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
                       )}
                     </td>
 
-                    {/* Entry Price (Editable) */}
-                    <td className="py-2.5 w-32">
-                      <div className="flex items-center gap-1">
+                    {/* Entry Price Stepper (Decrement / Input / Increment) */}
+                    <td className="py-2.5 w-36">
+                      <div className="flex items-center bg-[#141619] border border-[#2d3239] rounded-md overflow-hidden w-28">
+                        <button
+                          type="button"
+                          disabled={disabled || currentEntry <= 0.05}
+                          onClick={() => {
+                            const nextPrice = Math.max(0.05, Math.round((currentEntry - 0.5) * 100) / 100);
+                            handleUpdateLeg(index, 'entry_price', nextPrice);
+                          }}
+                          className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
+                          title="Decrease Price (-0.50)"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
                         <input
                           type="number"
                           step="0.05"
@@ -226,8 +260,20 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
                             handleUpdateLeg(index, 'entry_price', Number(e.target.value))
                           }
                           placeholder={liveLtp ? liveLtp.toFixed(2) : '0.00'}
-                          className="bg-[#141619] border border-[#2d3239] rounded-md px-2.5 py-1 text-slate-100 text-xs w-24 focus:outline-none focus:border-indigo-500 font-bold"
+                          className="bg-transparent text-center text-slate-100 text-xs w-full focus:outline-none font-bold py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => {
+                            const nextPrice = Math.round((currentEntry + 0.5) * 100) / 100;
+                            handleUpdateLeg(index, 'entry_price', nextPrice);
+                          }}
+                          className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
+                          title="Increase Price (+0.50)"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
                       </div>
                     </td>
 

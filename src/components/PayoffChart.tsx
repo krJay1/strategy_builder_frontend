@@ -10,7 +10,6 @@ import {
   Layers,
   Table as TableIcon,
   BarChart2,
-  Percent,
   Sigma,
 } from 'lucide-react';
 
@@ -18,9 +17,17 @@ interface PayoffChartProps {
   payoff?: PayoffResult;
   spotPrice: number;
   greeks?: PortfolioGreeks;
+  livePnL?: number;
+  totalValue?: number;
 }
 
-export const PayoffChart: React.FC<PayoffChartProps> = ({ payoff, spotPrice, greeks }) => {
+export const PayoffChart: React.FC<PayoffChartProps> = ({
+  payoff,
+  spotPrice,
+  greeks,
+  livePnL,
+  totalValue,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // View Mode: 'chart' (Graph) or 'table' (Sensibull-style Payoff Table)
@@ -273,7 +280,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({ payoff, spotPrice, gre
     <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-4 shadow-sm relative overflow-hidden space-y-3.5">
       {/* 1. Top Control Bar: View Switcher (Chart vs Table), SD Toggle, and Layers */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-[#2d3239]">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Sensibull-style View Mode Switcher */}
           <div className="flex items-center bg-[#141619] p-0.5 rounded-lg border border-[#282d34]">
             <button
@@ -300,12 +307,30 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({ payoff, spotPrice, gre
             </button>
           </div>
 
-          {/* Probability of Profit Badge */}
-          {payoff.pop !== undefined && payoff.pop > 0 && (
-            <span className="hidden sm:flex items-center gap-1 text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/25">
-              <Percent className="w-3 h-3" /> POP:{' '}
-              {(payoff.pop <= 1 ? payoff.pop * 100 : payoff.pop).toFixed(1)}%
-            </span>
+          {/* Unrealized P&L & Value (Live Metrics) */}
+          {livePnL !== undefined && (
+            <div className="flex items-center gap-3 font-mono text-xs bg-[#141619] px-3 py-1 rounded-lg border border-[#282d34]">
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-slate-400 font-sans text-[11px]">Unrealized P&L:</span>
+                <span className={`font-bold ${livePnL >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {livePnL >= 0
+                    ? `+₹${livePnL.toLocaleString('en-IN', { maximumFractionDigits: 1 })}`
+                    : `-₹${Math.abs(livePnL).toLocaleString('en-IN', { maximumFractionDigits: 1 })}`}
+                </span>
+              </div>
+              {totalValue !== undefined && (
+                <div className="flex items-center gap-1.5 pl-3 border-l border-[#282d34]">
+                  <span className="text-slate-400 font-sans text-[11px]">Value:</span>
+                  <span className="font-bold text-cyan-300">
+                    ₹{totalValue.toLocaleString('en-IN', { maximumFractionDigits: 1 })}
+                  </span>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -668,7 +693,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({ payoff, spotPrice, gre
                   stroke="#ffffff"
                   strokeWidth="1.5"
                 />
-                <g transform={`translate(${spotX - 34}, ${height - padding.bottom + 26})`}>
+                <g transform={`translate(${spotX - 34}, ${height - padding.bottom + -16})`}>
                   <rect width="68" height="15" rx="3" fill="#6366f1" />
                   <text x="34" y="11" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
                     Live ₹{spotPrice.toFixed(0)}
@@ -908,7 +933,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({ payoff, spotPrice, gre
               {spotPrice > 0 && (
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-indigo-400 inline-block"></span>
-                  <span className="font-sans font-semibold text-indigo-300">Live Spot (₹{spotPrice.toFixed(0)})</span>
+                  <span className="font-sans font-semibold text-indigo-300">Live Spot</span>
                 </div>
               )}
             </div>

@@ -77,25 +77,28 @@ export const SummaryMetrics: React.FC<SummaryMetricsProps> = ({ payoff }) => {
       </div>
 
       {/* Net Premium */}
-      <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group hover:border-cyan-500/40 transition">
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-500 to-cyan-400 opacity-80" />
+      <div
+        className={`bg-[#1e2124] border border-[#2d3239] rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group transition ${
+          isNetCredit ? 'hover:border-emerald-500/40' : 'hover:border-rose-500/40'
+        }`}
+      >
+        <div
+          className={`absolute top-0 left-0 right-0 h-0.5 opacity-80 bg-gradient-to-r ${
+            isNetCredit
+              ? 'from-emerald-500 to-emerald-400'
+              : 'from-rose-500 to-rose-400'
+          }`}
+        />
         <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
           <span className="font-medium">Net Premium</span>
-          <Wallet className="w-3.5 h-3.5 text-cyan-400" />
+          <Wallet className={`w-3.5 h-3.5 ${isNetCredit ? 'text-emerald-400' : 'text-rose-400'}`} />
         </div>
-        <div className="flex items-center gap-1.5">
-          <span
-            className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase tracking-wider ${
-              isNetCredit
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-            }`}
-          >
-            {isNetCredit ? 'Credit' : 'Debit'}
-          </span>
-          <span className="text-sm font-bold font-mono text-slate-100">
-            ₹{Math.abs(payoff.net_premium || 0).toLocaleString('en-IN')}
-          </span>
+        <div
+          className={`text-base font-bold font-mono ${
+            isNetCredit ? 'text-emerald-400' : 'text-rose-400'
+          }`}
+        >
+          {formatCurrency(payoff.net_premium)}
         </div>
       </div>
 
