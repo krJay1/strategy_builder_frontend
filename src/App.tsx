@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Header } from './components/Header';
 import { CredentialsModal } from './components/CredentialsModal';
 import { UnderlyingSection } from './components/UnderlyingSection';
@@ -9,9 +9,11 @@ import { GreeksCard } from './components/GreeksCard';
 import { MarginCard } from './components/MarginCard';
 import { EnrichedLegsTable } from './components/EnrichedLegsTable';
 import { useStrategyWebSocket } from './hooks/useStrategyWebSocket';
-import { strategyApi, UserCredentials } from './api/strategyApi';
-import { StrategyRequest, StrategyResponse, LegRequest, UnderlyingRequest } from './types/strategy';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useMarketDataWebSocket } from './hooks/useMarketDataWebSocket';
+import { strategyApi, UserCredentials, InstrumentSubscriptionItem } from './api/strategyApi';
+import { StrategyRequest, StrategyResponse, LegRequest, UnderlyingRequest, toSegmentNumber } from './types/strategy';
+import { Toaster } from './components/ui/sonner';
+import { notify } from './utils/toast';
 
 export const App: React.FC = () => {
   // Credentials State
@@ -20,6 +22,7 @@ export const App: React.FC = () => {
     userId: localStorage.getItem('sym_user_id') || 'AA002',
     clientId: localStorage.getItem('sym_client_id') || 'AA002',
     apiUrl: localStorage.getItem('api_url') || '',
+    marketWsUrl: localStorage.getItem('market_ws_url') || '',
   }));
   const [isCredsOpen, setIsCredsOpen] = useState(false);
 
@@ -50,27 +53,50 @@ export const App: React.FC = () => {
   // Strategy Calculation Response State
   const [strategyData, setStrategyData] = useState<StrategyResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // WebSocket Live Hook with Query Params
+  // Gather all active instruments for pre-validation market data subscription
+  const marketInstruments = useMemo<InstrumentSubscriptionItem[]>(() => {
+    const list: InstrumentSubscriptionItem[] = [];
+    const undSeg = toSegmentNumber(underlying.exchange_segment);
+    if (undSeg > 0 && Number(underlying.exchange_instrument_id) > 0) {
+      list.push({
+        exchangeSegment: undSeg,
+        exchangeInstrumentID: Number(underlying.exchange_instrument_id),
+      });
+    }
+    for (const leg of legs) {
+      const legSeg = toSegmentNumber(leg.exchange_segment);
+      if (legSeg > 0 && Number(leg.exchange_instrument_id) > 0) {
+        list.push({
+          exchangeSegment: legSeg,
+          exchangeInstrumentID: Number(leg.exchange_instrument_id),
+        });
+      }
+    }
+    return list;
+  }, [underlying, legs]);
+
+  // 1. Pre-Validation Market Data WebSocket Hook (Symphony /ws)
+  const { livePrices: marketDataLivePrices } = useMarketDataWebSocket({
+    token: credentials.token,
+    userId: credentials.userId,
+    apiUrl: credentials.apiUrl,
+    marketWsUrl: credentials.marketWsUrl,
+    instruments: marketInstruments,
+    enabled: Boolean(credentials.token),
+  });
+
+  // 2. Strategy Calculation WebSocket Hook (Unchanged)
   const {
     status: wsStatus,
     snapshot,
     connect,
   } = useStrategyWebSocket(credentials.token, credentials.userId, credentials.clientId, true);
 
-  // Active Data (Prioritizes live WebSocket snapshot, falls back to HTTP response)
-  const activePayoff = snapshot?.payoff || strategyData?.payoff;
-  const activeGreeks = snapshot?.greeks || strategyData?.greeks;
-  const activeMargin = snapshot?.margin || strategyData?.margin;
-  const activeLegs = snapshot?.legs || strategyData?.legs;
-  const currentSpot = snapshot?.underlying?.spot || strategyData?.underlying?.spot || underlying.spot || 0;
-  const livePnL = snapshot?.live_pnl;
-  const totalValue = snapshot?.total_value;
-
-  // Live prices dictionary
-  const livePrices: Record<number, number> = {};
+  // Combine live prices from pre-validation market data feed & strategy engine snapshot
+  const livePrices: Record<number, number> = {
+    ...marketDataLivePrices,
+  };
   if (snapshot?.legs) {
     for (const leg of snapshot.legs) {
       const id = leg.exchange_instrument_id;
@@ -81,22 +107,30 @@ export const App: React.FC = () => {
     }
   }
 
+  // Active Data (Prioritizes live WebSocket snapshot, falls back to HTTP response)
+  const activePayoff = snapshot?.payoff || strategyData?.payoff;
+  const activeGreeks = snapshot?.greeks || strategyData?.greeks;
+  const activeMargin = snapshot?.margin || strategyData?.margin;
+  const activeLegs = snapshot?.legs || strategyData?.legs;
+  const liveUnderlyingLtp = underlying.exchange_instrument_id ? livePrices[underlying.exchange_instrument_id] : undefined;
+  const currentSpot = snapshot?.underlying?.spot || liveUnderlyingLtp || strategyData?.underlying?.spot || underlying.spot || 0;
+  const livePnL = snapshot?.live_pnl;
+  const totalValue = snapshot?.total_value;
+
   // Handle Strategy Submission (Preview + Subscribe)
   const handleExecuteStrategy = async () => {
     if (!credentials.token) {
       setIsCredsOpen(true);
-      setErrorMessage('Please provide a Symphony Session Token first.');
+      notify.warning('Missing Credentials', 'Please provide a Symphony Session Token first.');
       return;
     }
 
     if (legs.length === 0) {
-      setErrorMessage('Please add at least one strategy leg.');
+      notify.warning('Missing Legs', 'Please add at least one strategy leg.');
       return;
     }
 
     setIsLoading(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
 
     const payload: StrategyRequest = {
       underlying,
@@ -107,16 +141,11 @@ export const App: React.FC = () => {
     try {
       const res = await strategyApi.createStrategy(payload);
       setStrategyData(res);
-      setSuccessMessage('Strategy subscribed! Receiving real-time WebSocket events...');
+      notify.success('Strategy Subscribed!', 'Live calculation and WebSocket ticker stream active.');
       // Reconnect/Ensure WS is listening with active query params
       connect();
     } catch (err: any) {
-      const msg =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.message ||
-        'Failed to execute strategy';
-      setErrorMessage(msg);
+      notify.apiError('Strategy Calculation Failed', err);
     } finally {
       setIsLoading(false);
     }
@@ -126,13 +155,12 @@ export const App: React.FC = () => {
   const [isUnsubscribing, setIsUnsubscribing] = useState(false);
   const handleUnsubscribe = async () => {
     setIsUnsubscribing(true);
-    setErrorMessage(null);
     try {
       await strategyApi.unsubscribeStrategy();
       setStrategyData(null);
-      setSuccessMessage('Strategy unsubscribed from live stream.');
+      notify.info('Strategy Unsubscribed', 'Disconnected from real-time stream.');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to unsubscribe');
+      notify.apiError('Unsubscribe Failed', err);
     } finally {
       setIsUnsubscribing(false);
     }
@@ -183,38 +211,6 @@ export const App: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
-        )}
-
-        {/* Error Alert Banner */}
-        {errorMessage && (
-          <div className="bg-rose-500/10 border border-rose-500/25 rounded-xl p-3 flex items-center justify-between text-xs text-rose-300 animate-in fade-in shadow-sm">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-            <button
-              onClick={() => setErrorMessage(null)}
-              className="text-slate-400 hover:text-slate-200 text-xs ml-4"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {/* Success Alert Banner */}
-        {successMessage && (
-          <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-xl p-3 flex items-center justify-between text-xs text-emerald-300 animate-in fade-in shadow-sm">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>{successMessage}</span>
-            </div>
-            <button
-              onClick={() => setSuccessMessage(null)}
-              className="text-slate-400 hover:text-slate-200 text-xs ml-4"
-            >
-              Dismiss
-            </button>
           </div>
         )}
 
@@ -272,9 +268,12 @@ export const App: React.FC = () => {
         credentials={credentials}
         onSave={(c) => {
           setCredentials(c);
-          setErrorMessage(null);
+          notify.success('Credentials Updated', `Session token configured for user ${c.userId || 'AA002'}`);
         }}
       />
+
+      {/* Shadcn Sonner Rich Toaster (Auto closes after 1000ms) */}
+      <Toaster />
     </div>
   );
 };

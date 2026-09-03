@@ -1,6 +1,21 @@
-// TypeScript interfaces mapping 1:1 to Go backend models
-
 export type Segment = 1 | 2 | 3 | 11 | 12 | 13 | 51 | 'NSECM' | 'NSEFO' | 'NSECD' | 'BSECM' | 'BSEFO' | 'BSECD' | 'MCXFO';
+
+export function toSegmentNumber(seg: Segment | number | string): number {
+  if (typeof seg === 'number') return seg;
+  const s = String(seg).toUpperCase().trim();
+  switch (s) {
+    case 'NSECM': return 1;
+    case 'NSEFO': return 2;
+    case 'NSECD': return 3;
+    case 'BSECM': return 11;
+    case 'BSEFO': return 12;
+    case 'BSECD': return 13;
+    case 'MCXFO': return 51;
+    default:
+      const n = Number(s);
+      return isNaN(n) ? 1 : n;
+  }
+}
 
 export interface LegRequest {
   exchange_segment: Segment | number;

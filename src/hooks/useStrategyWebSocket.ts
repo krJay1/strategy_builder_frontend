@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { WSMessage, LiveStrategyUpdate } from '../types/strategy';
+import { notify } from '../utils/toast';
 
 export type WSConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -80,7 +81,9 @@ export function useStrategyWebSocket(
             setSnapshot(msg.data);
             setError(null);
           } else if (eventName === 'error') {
-            setError(msg.error || 'Unknown WS error');
+            const errText = msg.error || (msg as any).message || 'Strategy stream error';
+            setError(errText);
+            notify.error('Strategy Feed Error', errText);
           }
         } catch (e) {
           console.error('Failed to parse WS message:', e);

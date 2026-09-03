@@ -19,6 +19,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({
   const [userId, setUserId] = useState(credentials.userId);
   const [clientId, setClientId] = useState(credentials.clientId);
   const [apiUrl, setApiUrl] = useState(credentials.apiUrl || '');
+  const [marketWsUrl, setMarketWsUrl] = useState(credentials.marketWsUrl || '');
   const [saved, setSaved] = useState(false);
 
   if (!isOpen) return null;
@@ -30,6 +31,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({
       userId: userId.trim(),
       clientId: clientId.trim(),
       apiUrl: apiUrl.trim(),
+      marketWsUrl: marketWsUrl.trim(),
     };
     saveCredentials(updated);
     onSave(updated);
@@ -104,17 +106,32 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1">
-              <Server className="w-3 h-3 text-slate-400" /> Base URL (Optional)
-            </label>
-            <input
-              type="text"
-              value={apiUrl}
-              onChange={(e) => setApiUrl(e.target.value)}
-              placeholder="Leave empty for local proxy"
-              className="w-full text-xs bg-[#141619] border border-[#2d3239] rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono placeholder:text-slate-600"
-            />
+          <div className="grid grid-cols-1 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1">
+                <Server className="w-3 h-3 text-slate-400" /> API Base URL (Optional)
+              </label>
+              <input
+                type="text"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                placeholder="Leave empty for local proxy or https://uat.firstdemat.in"
+                className="w-full text-xs bg-[#141619] border border-[#2d3239] rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono placeholder:text-slate-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1">
+                <Server className="w-3 h-3 text-slate-400" /> Market Data WS URL (Optional)
+              </label>
+              <input
+                type="text"
+                value={marketWsUrl}
+                onChange={(e) => setMarketWsUrl(e.target.value)}
+                placeholder="Default: ws://localhost:8081/ws"
+                className="w-full text-xs bg-[#141619] border border-[#2d3239] rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono placeholder:text-slate-600"
+              />
+            </div>
           </div>
 
           <div className="pt-2 flex items-center justify-end gap-2 border-t border-[#2d3239]">

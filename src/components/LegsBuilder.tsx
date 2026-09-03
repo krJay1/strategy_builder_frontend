@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, Layers, TrendingUp, Play } from 'lucide-react';
+import { Plus, Trash2, Layers, TrendingUp, Play, Zap } from 'lucide-react';
 import { LegRequest } from '../types/strategy';
 
 interface LegsBuilderProps {
@@ -192,19 +192,20 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
                     {/* Live LTP Display & 1-Click Sync */}
                     <td className="py-2.5 w-36">
                       {liveLtp !== undefined && liveLtp > 0 ? (
-                        <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => handleUpdateLeg(index, 'entry_price', liveLtp)}>
+                        <div className="flex items-center gap-1.5">
                           <span className="text-cyan-300 font-bold text-xs flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
                             ₹{liveLtp.toFixed(2)}
                           </span>
-                          {/* <button
+                          <button
                             type="button"
                             onClick={() => handleUpdateLeg(index, 'entry_price', liveLtp)}
-                            title="Set entry price to Live LTP"
+                            title="Copy Live LTP to Entry Price"
                             className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 border border-cyan-500/30 transition"
                           >
                             <Zap className="w-2.5 h-2.5" />
-                          </button> */}
+                            Use
+                          </button>
                         </div>
                       ) : (
                         <span className="text-slate-500 text-[11px] font-mono flex items-center gap-1">

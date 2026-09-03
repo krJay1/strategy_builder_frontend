@@ -111,28 +111,41 @@ export const UnderlyingSection: React.FC<UnderlyingSectionProps> = ({
           />
         </div>
 
-        {/* Spot Price */}
-        <div className="flex items-center gap-1.5 bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34]">
-          <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span className="text-[10px] text-slate-400 uppercase font-semibold">Spot:</span>
-          <input
-            type="number"
-            step="any"
-            value={underlying.spot || ''}
-            onChange={(e) =>
-              onChange({
-                ...underlying,
-                spot: Number(e.target.value),
-              })
-            }
-            placeholder={liveSpot ? liveSpot.toFixed(2) : 'Spot'}
-            className="bg-transparent text-xs text-emerald-300 font-bold font-mono w-full focus:outline-none"
-          />
+        {/* Spot Price with Live Feed Indicator */}
+        <div className="flex items-center justify-between gap-1.5 bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34]">
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="text-[10px] text-slate-400 uppercase font-semibold">Spot:</span>
+            <input
+              type="number"
+              step="any"
+              value={underlying.spot || ''}
+              onChange={(e) =>
+                onChange({
+                  ...underlying,
+                  spot: Number(e.target.value),
+                })
+              }
+              placeholder={liveSpot ? liveSpot.toFixed(2) : 'Spot'}
+              className="bg-transparent text-xs text-emerald-300 font-bold font-mono w-full focus:outline-none"
+            />
+          </div>
+          {liveSpot !== undefined && liveSpot > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange({ ...underlying, spot: liveSpot })}
+              title="Sync Spot with Live LTP"
+              className="shrink-0 flex items-center gap-1 text-[10px] font-mono font-bold text-cyan-300 bg-cyan-500/15 hover:bg-cyan-500/25 px-1.5 py-0.5 rounded border border-cyan-500/30 transition"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+              ₹{liveSpot.toFixed(1)}
+            </button>
+          )}
         </div>
 
         {/* Target Date for T+N Payoff Curve */}
         <div className="flex items-center gap-1.5 bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34]">
-          <Calendar className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+          <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
           <span className="text-[10px] text-slate-400 uppercase font-semibold">Target:</span>
           <input
             type="date"

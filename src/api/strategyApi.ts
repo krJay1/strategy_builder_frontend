@@ -6,14 +6,21 @@ export interface UserCredentials {
   userId: string;
   clientId: string;
   apiUrl?: string;
+  marketWsUrl?: string;
+}
+
+export interface InstrumentSubscriptionItem {
+  exchangeSegment: number;
+  exchangeInstrumentID: number;
 }
 
 const getStoredCredentials = (): UserCredentials => {
   return {
     token: localStorage.getItem('sym_token') || '',
-    userId: localStorage.getItem('sym_user_id') || 'DEMO_USER',
-    clientId: localStorage.getItem('sym_client_id') || 'DEMO_CLIENT',
+    userId: localStorage.getItem('sym_user_id') || 'AA002',
+    clientId: localStorage.getItem('sym_client_id') || 'AA002',
     apiUrl: localStorage.getItem('api_url') || '',
+    marketWsUrl: localStorage.getItem('market_ws_url') || '',
   };
 };
 
@@ -22,17 +29,20 @@ export const saveCredentials = (creds: Partial<UserCredentials>) => {
   if (creds.userId !== undefined) localStorage.setItem('sym_user_id', creds.userId);
   if (creds.clientId !== undefined) localStorage.setItem('sym_client_id', creds.clientId);
   if (creds.apiUrl !== undefined) localStorage.setItem('api_url', creds.apiUrl);
+  if (creds.marketWsUrl !== undefined) localStorage.setItem('market_ws_url', creds.marketWsUrl);
 };
 
-export const createApiClient = () => {
+export const createApiClient = (overrideBaseURL?: string) => {
   const creds = getStoredCredentials();
-  const baseURL = creds.apiUrl || '';
+  const baseURL = overrideBaseURL !== undefined ? overrideBaseURL : (creds.apiUrl || '');
+  const token = creds.token.trim();
+  const authHeader = token ? (token.startsWith('Bearer ') ? token : `Bearer ${token}`) : '';
 
   const client = axios.create({
     baseURL,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': creds.token.startsWith('Bearer ') ? creds.token : `Bearer ${creds.token}`,
+      ...(authHeader ? { Authorization: authHeader } : {}),
       'User-Id': creds.userId,
       'Client-Id': creds.clientId,
     },
@@ -68,6 +78,22 @@ export const strategyApi = {
   unsubscribeStrategy: async (): Promise<any> => {
     const client = createApiClient();
     const res = await client.delete<ApiResponse<any>>('/api/v2/strategy');
+    return res.data;
+  },
+
+  // POST /api/v1/symphony/apibinarymarketdata/instruments/subscription (Symphony Market Data Pre-Subscription)
+  // Base URL: https://uat.firstdemat.in (or configured apiUrl)
+  subscribeMarketData: async (instruments: InstrumentSubscriptionItem[]): Promise<any> => {
+    const creds = getStoredCredentials();
+    const baseURL = creds.apiUrl?.trim() || 'https://uat.firstdemat.in';
+    const client = createApiClient(baseURL);
+    const res = await client.post<any>(
+      '/api/v1/symphony/apibinarymarketdata/instruments/subscription',
+      {
+        instruments,
+        xtsMessageCode: 1501,
+      }
+    );
     return res.data;
   },
 };
