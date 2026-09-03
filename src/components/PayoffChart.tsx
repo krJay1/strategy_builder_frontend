@@ -333,7 +333,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({ payoff, spotPrice, gre
             <button
               onClick={() => setShowBreakEvens(!showBreakEvens)}
               className={`text-[10px] px-1.5 py-0.5 rounded font-medium transition ${
-                showBreakEvens ? 'bg-amber-500/30 text-amber-300 font-bold' : 'text-slate-500'
+                showBreakEvens ? 'bg-slate-200 text-slate-900 font-bold' : 'text-slate-500'
               }`}
             >
               BE
@@ -613,26 +613,34 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({ payoff, spotPrice, gre
               ₹0
             </text>
 
-            {/* Break-Even Vertical Marker Lines & Callout Badges */}
+            {/* Break-Even Vertical Marker Lines & Callout Badges (Distinct Slate-White with Emerald Diamond Marker) */}
             {showBreakEvens &&
               breakEvens.map((be, i) => {
                 const beX = getX(be);
                 if (beX < padding.left || beX > width - padding.right) return null;
                 return (
-                  <g key={i}>
+                  <g key={i} className="select-none">
                     <line
                       x1={beX}
                       y1={padding.top}
                       x2={beX}
                       y2={height - padding.bottom}
-                      stroke="#f59e0b"
-                      strokeDasharray="4 4"
+                      stroke="#f8fafc"
+                      strokeDasharray="2 3"
+                      strokeWidth="1.5"
+                      opacity="0.85"
+                    />
+                    {/* Diamond Marker at Zero-Line Intersection */}
+                    <polygon
+                      points={`${beX},${zeroY - 5} ${beX + 5},${zeroY} ${beX},${zeroY + 5} ${beX - 5},${zeroY}`}
+                      fill="#10b981"
+                      stroke="#ffffff"
                       strokeWidth="1.5"
                     />
-                    <circle cx={beX} cy={zeroY} r="4" fill="#f59e0b" stroke="#1e2124" strokeWidth="2" />
-                    <g transform={`translate(${beX - 26}, ${padding.top - 18})`}>
-                      <rect width="52" height="15" rx="3" fill="#f59e0b" />
-                      <text x="26" y="11" fill="#1e2124" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                    {/* Crisp Top Callout Pill */}
+                    <g transform={`translate(${beX - 30}, ${padding.top - 20})`}>
+                      <rect width="60" height="17" rx="4" fill="#0f172a" stroke="#f8fafc" strokeWidth="1.5" />
+                      <text x="30" y="12" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
                         BE ₹{be.toFixed(0)}
                       </text>
                     </g>
@@ -698,14 +706,16 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({ payoff, spotPrice, gre
               </g>
             )}
 
-            {/* Target Date (T+N) Line (Dashed Amber) */}
+            {/* Target Date (T+N) Line (Dashed Amber Glow) */}
             {showTargetDate && targetLine && (
               <path
                 d={targetLine}
                 fill="none"
                 stroke="#f59e0b"
-                strokeWidth="2"
-                strokeDasharray="5 4"
+                strokeWidth="2.5"
+                strokeDasharray="7 4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
             )}
 
@@ -871,6 +881,43 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({ payoff, spotPrice, gre
               </div>
             </div>
           )}
+
+          {/* Dedicated Visual Chart Legend */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 bg-[#141619] border-t border-[#282d34] text-[11px]">
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Expiry Curve */}
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-[3px] bg-cyan-400 rounded-full inline-block"></span>
+                <span className="font-sans font-semibold text-slate-200">Expiry Payoff</span>
+              </div>
+              {/* Target Curve */}
+              {targetLine && (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-0 border-t-2 border-dashed border-amber-400 inline-block"></span>
+                  <span className="font-sans font-semibold text-amber-300">Target Date (T+N)</span>
+                </div>
+              )}
+              {/* Break Even */}
+              {breakEvens.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rotate-45 bg-emerald-400 border border-white inline-block"></span>
+                  <span className="font-sans font-semibold text-slate-200">Break-Even (BE)</span>
+                </div>
+              )}
+              {/* Live Spot */}
+              {spotPrice > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-indigo-400 inline-block"></span>
+                  <span className="font-sans font-semibold text-indigo-300">Live Spot (₹{spotPrice.toFixed(0)})</span>
+                </div>
+              )}
+            </div>
+
+            {/* Hint */}
+            <span className="hidden sm:inline text-[10px] text-slate-400 font-sans">
+              Hover over chart to inspect P&L at any price
+            </span>
+          </div>
         </div>
       ) : (
         /* Sensibull-style Payoff Table View */
