@@ -130,6 +130,33 @@ export const App: React.FC = () => {
       return;
     }
 
+    if (!underlying.exchange_instrument_id || underlying.exchange_instrument_id <= 0) {
+      notify.warning('Invalid Underlying', 'Please provide a valid underlying instrument ID.');
+      return;
+    }
+
+    if (!underlying.spot || underlying.spot <= 0 || isNaN(underlying.spot)) {
+      notify.warning('Invalid Spot Price', 'Underlying spot price is required and must be greater than zero.');
+      return;
+    }
+
+    for (let i = 0; i < legs.length; i++) {
+      const l = legs[i];
+      if (!l.exchange_instrument_id || l.exchange_instrument_id <= 0) {
+        notify.warning('Invalid Leg', `Leg #${i + 1}: Instrument ID is required.`);
+        return;
+      }
+      if (!l.lots || l.lots <= 0) {
+        notify.warning('Invalid Lots', `Leg #${i + 1}: Lots must be greater than zero.`);
+        return;
+      }
+      const entryPx = l.entry_price || l.price;
+      if (!entryPx || entryPx <= 0 || isNaN(entryPx)) {
+        notify.warning('Invalid Entry Price', `Leg #${i + 1}: Entry price is required and must be greater than zero.`);
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     const payload: StrategyRequest = {

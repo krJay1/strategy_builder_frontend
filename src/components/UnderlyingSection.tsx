@@ -157,8 +157,9 @@ export const UnderlyingSection: React.FC<UnderlyingSectionProps> = ({
 
         {/* 4. Target Date */}
         <div className="space-y-1">
-          <label className="text-[10px] text-amber-300 uppercase font-semibold tracking-wider" title="Simulate intermediate P&L before expiry">
-            Target Date (T+N)
+          <label className="text-[10px] text-amber-300 uppercase font-semibold tracking-wider flex items-center gap-1" title="Simulate intermediate P&L before expiry">
+            <Calendar className="w-3 h-3 text-amber-400" />
+            <span>Target Date (T+N)</span>
           </label>
           <div className="bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34] focus-within:border-amber-500/50 transition">
             <input
