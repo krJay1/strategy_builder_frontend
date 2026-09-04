@@ -60,47 +60,47 @@ export function formatErrorDetail(err: any): FormattedError {
 }
 
 export const notify = {
-  error: (title: string, errOrDesc?: any) => {
+  error: (title: string, errOrDesc?: any, duration?: number) => {
     if (errOrDesc && typeof errOrDesc === 'object') {
       const { title: autoTitle, description } = formatErrorDetail(errOrDesc);
       toast.error(title || autoTitle, {
         description: description || autoTitle,
-        duration: 1000,
+        ...(duration !== undefined ? { duration } : {}),
       });
     } else {
       toast.error(title, {
         description: typeof errOrDesc === 'string' ? errOrDesc : undefined,
-        duration: 1000,
+        ...(duration !== undefined ? { duration } : {}),
       });
     }
   },
 
-  apiError: (actionTitle: string, err: any) => {
+  apiError: (actionTitle: string, err: any, duration?: number) => {
     const { title: endpointTitle, description } = formatErrorDetail(err);
     toast.error(actionTitle, {
       description: `${endpointTitle}: ${description}`,
-      duration: 1000,
+      ...(duration !== undefined ? { duration } : {}),
     });
   },
 
-  success: (title: string, description?: string) => {
+  success: (title: string, description?: string, duration?: number) => {
     toast.success(title, {
       description,
-      duration: 1000,
+      ...(duration !== undefined ? { duration } : {}),
     });
   },
 
-  info: (title: string, description?: string) => {
+  info: (title: string, description?: string, duration?: number) => {
     toast.info(title, {
       description,
-      duration: 1000,
+      ...(duration !== undefined ? { duration } : {}),
     });
   },
 
-  warning: (title: string, description?: string) => {
+  warning: (title: string, description?: string, duration?: number) => {
     toast.warning(title, {
       description,
-      duration: 1000,
+      ...(duration !== undefined ? { duration } : {}),
     });
   },
 };
