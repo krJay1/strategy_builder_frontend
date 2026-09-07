@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { strategyApi, InstrumentSubscriptionItem } from '../api/strategyApi';
-import { notify } from '../utils/toast';
 
 export type MarketWSStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
+
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 interface UseMarketDataWebSocketProps {
   token: string;
@@ -109,44 +110,52 @@ export function useMarketDataWebSocket({
   const socketRef = useRef<WebSocket | null>(null);
   const isManualCloseRef = useRef(false);
   const reconnectTimeoutRef = useRef<any>(null);
+  const reconnectAttemptsRef = useRef<number>(0);
   const pingIntervalRef = useRef<any>(null);
   const subscribedMapRef = useRef<Map<string, InstrumentSubscriptionItem>>(new Map());
+  const lastSubscribedFingerprintRef = useRef<string>('');
   const debounceTimerRef = useRef<any>(null);
+  const flushTimerRef = useRef<any>(null);
+  const pendingTicksRef = useRef<Record<number, number>>({});
+  const instrumentsRef = useRef<InstrumentSubscriptionItem[]>(instruments);
 
-  // Filter and deduplicate valid instruments
-  const validInstruments = useMemo(() => {
-    const map = new Map<string, InstrumentSubscriptionItem>();
-    for (const inst of instruments) {
-      if (inst.exchangeSegment > 0 && inst.exchangeInstrumentID > 0) {
-        const key = `${inst.exchangeSegment}_${inst.exchangeInstrumentID}`;
-        if (!map.has(key)) {
-          map.set(key, inst);
-        }
-      }
-    }
-    return Array.from(map.values());
-  }, [instruments]);
+  // Keep instruments ref up to date
+  instrumentsRef.current = instruments;
 
-  // Stable fingerprint of subscribed instruments to prevent unnecessary REST calls
+  // Filter and deduplicate valid instruments to a stable string fingerprint
   const instrumentsFingerprint = useMemo(() => {
-    return validInstruments
-      .map((i) => `${i.exchangeSegment}_${i.exchangeInstrumentID}`)
+    const valid = instruments.filter(
+      (i) => i && Number(i.exchangeSegment) > 0 && Number(i.exchangeInstrumentID) > 0
+    );
+    return Array.from(
+      new Set(valid.map((i) => `${i.exchangeSegment}_${i.exchangeInstrumentID}`))
+    )
       .sort()
       .join(',');
-  }, [validInstruments]);
+  }, [instruments]);
 
   // Construct WebSocket Endpoint URL
   const wsEndpoint = useMemo(() => {
     let base = marketWsUrl?.trim();
     if (!base) {
       if (apiUrl && apiUrl.startsWith('http')) {
-        const u = new URL(apiUrl);
-        const proto = u.protocol === 'https:' ? 'wss:' : 'ws:';
-        base = `${proto}//${u.host}/ws`;
+        try {
+          const u = new URL(apiUrl);
+          // If pointing to a remote host (e.g. uat.firstdemat.in), use its remote host
+          if (!u.hostname.includes('localhost') && !u.hostname.includes('127.0.0.1')) {
+            const proto = u.protocol === 'https:' ? 'wss:' : 'ws:';
+            base = `${proto}//${u.host}/ws`;
+          } else {
+            const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            base = `${proto}//${window.location.host}/ws`;
+          }
+        } catch {
+          const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          base = `${proto}//${window.location.host}/ws`;
+        }
       } else {
         const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.hostname || 'localhost';
-        base = `${proto}//${host}:8081/ws`;
+        base = `${proto}//${window.location.host}/ws`;
       }
     }
 
@@ -165,94 +174,143 @@ export function useMarketDataWebSocket({
     }
   }, [marketWsUrl, apiUrl, userId, token]);
 
-  // Connect WebSocket (Persistent connection matching Strategy WebSocket)
-  const connect = useCallback(() => {
-    if (!enabled || !token) {
-      setStatus('disconnected');
-      return;
-    }
+  // Flush batched ticks to state on animation/throttle frame
+  const scheduleTickFlush = useCallback(() => {
+    if (flushTimerRef.current) return;
+    flushTimerRef.current = setTimeout(() => {
+      flushTimerRef.current = null;
+      const pending = pendingTicksRef.current;
+      const keys = Object.keys(pending);
+      if (keys.length === 0) return;
 
-    // Mark previous socket close as intentional to avoid cascading reconnect timers
-    if (socketRef.current) {
-      isManualCloseRef.current = true;
-      socketRef.current.close();
-      socketRef.current = null;
-    }
+      const nextBatch = { ...pending };
+      pendingTicksRef.current = {};
 
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
+      setLivePrices((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const [idStr, ltp] of Object.entries(nextBatch)) {
+          const id = Number(idStr);
+          if (next[id] !== ltp) {
+            next[id] = ltp;
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 60);
+  }, []);
 
-    setStatus('connecting');
-    setError(null);
+  // Connect WebSocket with backoff and retry guard
+  const connect = useCallback(
+    (isManual = false) => {
+      if (isManual) {
+        reconnectAttemptsRef.current = 0;
+      }
 
-    try {
-      isManualCloseRef.current = false;
-      const ws = new WebSocket(wsEndpoint);
-      socketRef.current = ws;
+      if (!enabled || !token) {
+        setStatus((prev) => (prev !== 'disconnected' ? 'disconnected' : prev));
+        return;
+      }
 
-      ws.onopen = () => {
-        setStatus('connected');
-        setError(null);
+      // If socket is already open or connecting to the current endpoint, do not recreate
+      if (
+        socketRef.current &&
+        (socketRef.current.readyState === WebSocket.OPEN ||
+          socketRef.current.readyState === WebSocket.CONNECTING)
+      ) {
+        return;
+      }
+
+      if (socketRef.current) {
+        isManualCloseRef.current = true;
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+
+      setStatus('connecting');
+      setError(null);
+
+      try {
         isManualCloseRef.current = false;
+        const ws = new WebSocket(wsEndpoint);
+        socketRef.current = ws;
 
-        // Start single ping heartbeat every 15s
-        if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
-        pingIntervalRef.current = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ action: 'ping' }));
-          }
-        }, 15000);
-      };
+        ws.onopen = () => {
+          setStatus('connected');
+          setError(null);
+          isManualCloseRef.current = false;
+          reconnectAttemptsRef.current = 0;
 
-      ws.onmessage = (event) => {
-        try {
-          const ticks = extractTicks(event.data);
-          if (ticks.length > 0) {
-            setLivePrices((prev) => {
-              let changed = false;
-              const next = { ...prev };
+          // Start ping heartbeat every 15s
+          if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+          pingIntervalRef.current = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ action: 'ping' }));
+            }
+          }, 15000);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const ticks = extractTicks(event.data);
+            if (ticks.length > 0) {
               for (const { id, ltp } of ticks) {
-                if (next[id] !== ltp) {
-                  next[id] = ltp;
-                  changed = true;
-                }
+                pendingTicksRef.current[id] = ltp;
               }
-              return changed ? next : prev;
-            });
+              scheduleTickFlush();
+            }
+          } catch (err) {
+            console.warn('Market WS message parse warning:', err);
           }
-        } catch (err) {
-          console.warn('Market WS message parse warning:', err);
-        }
-      };
+        };
 
-      ws.onerror = () => {
+        ws.onerror = () => {
+          setStatus((prev) => (prev !== 'error' ? 'error' : prev));
+          setError('Market Data WebSocket connection error');
+        };
+
+        ws.onclose = () => {
+          setStatus((prev) => (prev !== 'disconnected' ? 'disconnected' : prev));
+          if (pingIntervalRef.current) {
+            clearInterval(pingIntervalRef.current);
+            pingIntervalRef.current = null;
+          }
+
+          // Auto-reconnect with exponential backoff on unexpected disconnect
+          if (!isManualCloseRef.current && enabled && token) {
+            if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+              const delay = Math.min(
+                1000 * Math.pow(1.5, reconnectAttemptsRef.current) + Math.random() * 500,
+                15000
+              );
+              reconnectAttemptsRef.current += 1;
+              if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+              reconnectTimeoutRef.current = setTimeout(() => {
+                connect(false);
+              }, delay);
+            } else {
+              setError('Market Data feed paused after multiple retries. Click Sync to reconnect.');
+            }
+          }
+        };
+      } catch (err: any) {
         setStatus('error');
-        setError('Market Data WebSocket error');
-      };
+        setError(err.message || 'Failed to initialize Market WebSocket');
+      }
+    },
+    [enabled, token, wsEndpoint, scheduleTickFlush]
+  );
 
-      ws.onclose = () => {
-        setStatus('disconnected');
-        if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
-
-        // Auto reconnect ONLY on unexpected disconnect (network drop), NOT on intentional unmount/close
-        if (!isManualCloseRef.current && enabled && token) {
-          if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, 3000);
-        }
-      };
-    } catch (err: any) {
-      setStatus('error');
-      setError(err.message || 'Failed to initialize Market WebSocket');
-    }
-  }, [enabled, token, wsEndpoint]);
-
-  // Auto-connect once on mount / token change
+  // Auto-connect once when enabled, token, or wsEndpoint changes
   useEffect(() => {
-    connect();
+    reconnectAttemptsRef.current = 0;
+    connect(true);
     return () => {
       isManualCloseRef.current = true;
       if (socketRef.current) {
@@ -261,15 +319,25 @@ export function useMarketDataWebSocket({
       }
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
     };
   }, [connect]);
 
-  // Reconcile and sync subscriptions (subscribing new & unsubscribing removed instruments)
+  // Reconcile subscriptions via REST (subscribing new & unsubscribing removed instruments)
   const syncSubscriptions = useCallback(async () => {
-    if (!token || validInstruments.length === 0 && subscribedMapRef.current.size === 0) return;
+    if (!token) return;
+
+    const currentFingerprint = instrumentsFingerprint;
+    if (lastSubscribedFingerprintRef.current === currentFingerprint) {
+      return;
+    }
+
+    const currentList = instrumentsRef.current.filter(
+      (i) => i && Number(i.exchangeSegment) > 0 && Number(i.exchangeInstrumentID) > 0
+    );
 
     const currentMap = new Map<string, InstrumentSubscriptionItem>();
-    for (const inst of validInstruments) {
+    for (const inst of currentList) {
       currentMap.set(`${inst.exchangeSegment}_${inst.exchangeInstrumentID}`, inst);
     }
 
@@ -292,6 +360,7 @@ export function useMarketDataWebSocket({
     }
 
     if (toUnsubscribe.length === 0 && toSubscribe.length === 0) {
+      lastSubscribedFingerprintRef.current = currentFingerprint;
       return;
     }
 
@@ -313,13 +382,15 @@ export function useMarketDataWebSocket({
           prevMap.set(`${inst.exchangeSegment}_${inst.exchangeInstrumentID}`, inst);
         }
       }
+      lastSubscribedFingerprintRef.current = currentFingerprint;
     } catch (err: any) {
       console.warn('Market data subscription sync warning:', err.message);
-      notify.apiError('Market Subscription Sync', err);
+      // Mark fingerprint as processed to prevent infinite retry loop
+      lastSubscribedFingerprintRef.current = currentFingerprint;
     } finally {
       setIsSubscribing(false);
     }
-  }, [token, validInstruments]);
+  }, [token, instrumentsFingerprint]);
 
   // Debounced subscription reconciliation ONLY when actual instrument IDs change
   useEffect(() => {
@@ -327,10 +398,10 @@ export function useMarketDataWebSocket({
       clearTimeout(debounceTimerRef.current);
     }
 
-    if (token) {
+    if (token && enabled && instrumentsFingerprint) {
       debounceTimerRef.current = setTimeout(() => {
         syncSubscriptions();
-      }, 350);
+      }, 400);
     }
 
     return () => {
@@ -338,14 +409,14 @@ export function useMarketDataWebSocket({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [instrumentsFingerprint, token, syncSubscriptions]);
+  }, [instrumentsFingerprint, token, enabled, syncSubscriptions]);
 
   return {
     status,
     livePrices,
     isSubscribing,
     error,
-    reconnect: connect,
+    reconnect: () => connect(true),
     resubscribe: syncSubscriptions,
   };
 }

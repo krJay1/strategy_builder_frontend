@@ -1,5 +1,16 @@
 import React from 'react';
-import { Plus, Minus, Trash2, Layers, TrendingUp, Play, Zap } from 'lucide-react';
+import {
+  Plus,
+  Minus,
+  Trash2,
+  Layers,
+  TrendingUp,
+  Play,
+  Zap,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
+} from 'lucide-react';
 import { LegRequest } from '../types/strategy';
 
 interface LegsBuilderProps {
@@ -35,6 +46,22 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
     onChange(updated);
   };
 
+  const handleMoveLeg = (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= legs.length) return;
+    const updated = [...legs];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(newIndex, 0, moved);
+    onChange(updated);
+  };
+
+  const handleAutoArrange = () => {
+    // Reorder BUY hedge legs first, then SELL legs
+    const buys = legs.filter((l) => l.side === 'BUY');
+    const sells = legs.filter((l) => l.side !== 'BUY');
+    onChange([...buys, ...sells]);
+  };
+
   const handleUpdateLeg = (index: number, field: keyof LegRequest, value: any) => {
     const updated = legs.map((leg, i) => {
       if (i === index) {
@@ -55,6 +82,20 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
           </h3>
         </div>
         <div className="flex items-center gap-2">
+          {/* Auto-Arrange (BUY First) Button */}
+          {legs.length > 1 && (
+            <button
+              type="button"
+              onClick={handleAutoArrange}
+              disabled={disabled || isLoading}
+              title="Rearrange legs with BUY orders first to optimize margin benefit"
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-[#141619] hover:bg-[#282d34] text-slate-300 hover:text-white border border-[#2d3239] transition shadow-sm active:scale-95 disabled:opacity-50"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5 text-indigo-400" />
+              Auto-Arrange (BUY 1st)
+            </button>
+          )}
+
           {/* Analyze & Subscribe Action Button (Icon with Tooltip opening on Top) */}
           {onAnalyze && (
             <div className="relative group flex items-center">
@@ -277,16 +318,37 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
                       </div>
                     </td>
 
-                    {/* Delete Action */}
-                    <td className="py-2.5 text-right w-12 pr-2">
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveLeg(index)}
-                        className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
-                        title="Delete Leg"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    {/* Action (Reorder & Delete) */}
+                    <td className="py-2.5 text-right w-20 pr-2">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <button
+                          type="button"
+                          disabled={disabled || index === 0}
+                          onClick={() => handleMoveLeg(index, 'up')}
+                          className="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-[#282d34] disabled:opacity-20 disabled:hover:bg-transparent transition"
+                          title="Move Leg Up"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={disabled || index === legs.length - 1}
+                          onClick={() => handleMoveLeg(index, 'down')}
+                          className="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-[#282d34] disabled:opacity-20 disabled:hover:bg-transparent transition"
+                          title="Move Leg Down"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => handleRemoveLeg(index)}
+                          className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                          title="Delete Leg"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

@@ -15,6 +15,14 @@ import { StrategyRequest, StrategyResponse, LegRequest, UnderlyingRequest, toSeg
 import { Toaster } from './components/ui/sonner';
 import { notify } from './utils/toast';
 
+const getTodayDateString = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const App: React.FC = () => {
   // Credentials State
   const [credentials, setCredentials] = useState<UserCredentials>(() => ({
@@ -32,7 +40,7 @@ export const App: React.FC = () => {
     exchange_instrument_id: 2885, // RELIANCE
     spot: 1309.1,
   });
-  const [targetDate, setTargetDate] = useState<string>('');
+  const [targetDate, setTargetDate] = useState<string>(() => getTodayDateString());
   const [legs, setLegs] = useState<LegRequest[]>([
     {
       exchange_segment: 2, // NSEFO
@@ -117,7 +125,7 @@ export const App: React.FC = () => {
   // Active Data (Prioritizes live WebSocket snapshot, falls back to HTTP response)
   const activePayoff = snapshot?.payoff || strategyData?.payoff;
   const activeGreeks = snapshot?.greeks || strategyData?.greeks;
-  const activeMargin = snapshot?.margin || strategyData?.margin;
+  const activeMargin = strategyData?.margin;
   const activeLegs = snapshot?.legs || strategyData?.legs;
   const liveUnderlyingLtp = underlying.exchange_instrument_id ? livePrices[underlying.exchange_instrument_id] : undefined;
   const currentSpot = snapshot?.underlying?.spot || liveUnderlyingLtp || strategyData?.underlying?.spot || underlying.spot || 0;
@@ -169,7 +177,10 @@ export const App: React.FC = () => {
     const payload: StrategyRequest = {
       underlying,
       target_date: targetDate || undefined,
-      legs,
+      legs: legs.map((leg, idx) => ({
+        ...leg,
+        leg_index: leg.leg_index ?? idx + 1,
+      })),
     };
 
     try {
@@ -241,7 +252,7 @@ export const App: React.FC = () => {
             />
 
             {/* 3. Margin & Capital Requirements Card */}
-            <MarginCard margin={activeMargin} />
+            <MarginCard margin={activeMargin} isLoading={isLoading} />
           </div>
 
           {/* RIGHT COLUMN: Payoff Chart on top & Analytics below */}

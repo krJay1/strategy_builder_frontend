@@ -18,6 +18,7 @@ export function toSegmentNumber(seg: Segment | number | string): number {
 }
 
 export interface LegRequest {
+  leg_index?: number;
   exchange_segment: Segment | number;
   exchange_instrument_id: number;
   side: 'BUY' | 'SELL';
@@ -60,6 +61,7 @@ export interface LegGreeks {
 }
 
 export interface LiveLegUpdate {
+  leg_index?: number;
   exchange_segment: number;
   exchange_instrument_id: number;
   trading_symbol: string;
@@ -126,13 +128,11 @@ export interface PayoffResult {
 }
 
 export interface MarginResult {
+  is_valid?: boolean;
   required: number;
   available_margin?: number;
   margin_shortfall?: number;
-  span_margin?: number;
-  exposure_margin?: number;
-  net_premium?: number;
-  margin_benefit?: number;
+  error_message?: string;
   raw?: any;
   error?: string;
 }
@@ -155,7 +155,6 @@ export interface LiveStrategyUpdate {
   legs: LiveLegUpdate[];
   greeks?: PortfolioGreeks;
   payoff?: PayoffResult;
-  margin?: MarginResult;
 }
 
 export interface WSMessage<T = any> {

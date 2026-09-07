@@ -30,7 +30,8 @@ export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
         <table className="w-full text-left text-xs">
           <thead>
             <tr className="text-slate-400 border-b border-[#2d3239] text-[10px] uppercase tracking-wider">
-              <th className="pb-2.5 font-semibold pl-2">Symbol</th>
+              <th className="pb-2.5 font-semibold text-slate-500 pl-2 w-8">#</th>
+              <th className="pb-2.5 font-semibold">Symbol</th>
               <th className="pb-2.5 font-semibold">Type</th>
               <th className="pb-2.5 font-semibold">Side</th>
               <th className="pb-2.5 font-semibold">Expiry</th>
@@ -51,7 +52,10 @@ export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
 
               return (
                 <tr key={idx} className="hover:bg-[#151C2A]/60 transition">
-                  <td className="py-2.5 font-semibold text-slate-100 pl-2">
+                  <td className="py-2.5 text-slate-500 w-8 pl-2 font-bold">
+                    {leg.leg_index ?? idx + 1}
+                  </td>
+                  <td className="py-2.5 font-semibold text-slate-100">
                     {leg.trading_symbol || leg.name || `ID: ${leg.exchange_instrument_id}`}
                   </td>
                   <td className="py-2.5">

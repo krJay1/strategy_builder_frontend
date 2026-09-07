@@ -17,8 +17,12 @@ export default defineConfig({
         target: 'http://localhost:8091',
         changeOrigin: true,
       },
-      '/ws': {
+      '/ws/strategy': {
         target: 'ws://localhost:8091',
+        ws: true,
+      },
+      '/ws': {
+        target: 'ws://localhost:8081',
         ws: true,
       },
     },
