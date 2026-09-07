@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   Minus,
@@ -12,6 +12,241 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { LegRequest } from '../types/strategy';
+
+interface LegRowProps {
+  leg: LegRequest;
+  index: number;
+  disabled?: boolean;
+  liveLtp?: number;
+  onUpdateLeg: (index: number, field: keyof LegRequest, value: any) => void;
+  onRemoveLeg: (index: number) => void;
+  onMoveLeg: (index: number, direction: 'up' | 'down') => void;
+  isFirst: boolean;
+  isLast: boolean;
+}
+
+const LegRow: React.FC<LegRowProps> = ({
+  leg,
+  index,
+  disabled,
+  liveLtp,
+  onUpdateLeg,
+  onRemoveLeg,
+  onMoveLeg,
+  isFirst,
+  isLast,
+}) => {
+  const isBuy = leg.side === 'BUY';
+  const currentLots = leg.lots || 1;
+  const currentEntry = Number(leg.entry_price ?? leg.price ?? 0);
+
+  // Local state for instrument ID to commit on focus loss (blur) or Enter key
+  const [localId, setLocalId] = useState<string>(
+    leg.exchange_instrument_id ? String(leg.exchange_instrument_id) : ''
+  );
+
+  useEffect(() => {
+    setLocalId(leg.exchange_instrument_id ? String(leg.exchange_instrument_id) : '');
+  }, [leg.exchange_instrument_id]);
+
+  const handleCommitId = () => {
+    const parsed = Number(localId.trim());
+    const validId = !isNaN(parsed) && parsed > 0 ? parsed : 0;
+    if (validId !== leg.exchange_instrument_id) {
+      onUpdateLeg(index, 'exchange_instrument_id', validId);
+    }
+  };
+
+  return (
+    <tr className="hover:bg-[#25282e]/50 transition">
+      <td className="py-2.5 text-slate-500 w-8 pl-2">{index + 1}</td>
+
+      {/* Side Toggle Button (B / S) */}
+      <td className="py-2.5 w-10">
+        <button
+          type="button"
+          onClick={() =>
+            onUpdateLeg(index, 'side', isBuy ? 'SELL' : 'BUY')
+          }
+          title={isBuy ? 'Side: BUY (click to toggle SELL)' : 'Side: SELL (click to toggle BUY)'}
+          className={`text-xs font-bold w-6 h-6 rounded flex items-center justify-center transition border ${
+            isBuy
+              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
+              : 'bg-rose-500/15 text-rose-400 border-rose-500/30 hover:bg-rose-500/25'
+          }`}
+        >
+          {isBuy ? 'B' : 'S'}
+        </button>
+      </td>
+
+      {/* Segment Selector */}
+      <td className="py-2.5 w-32">
+        <select
+          value={leg.exchange_segment}
+          onChange={(e) =>
+            onUpdateLeg(index, 'exchange_segment', Number(e.target.value))
+          }
+          className="bg-[#141619] border border-[#2d3239] rounded-md px-2 py-1 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+        >
+          <option value={2}>NSEFO (2)</option>
+          <option value={1}>NSECM (1)</option>
+          <option value={12}>BSEFO (12)</option>
+          <option value={11}>BSECM (11)</option>
+          <option value={51}>MCXFO (51)</option>
+        </select>
+      </td>
+
+      {/* Instrument ID */}
+      <td className="py-2.5">
+        <input
+          type="number"
+          value={localId}
+          onChange={(e) => setLocalId(e.target.value)}
+          onBlur={handleCommitId}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.currentTarget.blur();
+            }
+          }}
+          placeholder="e.g. 144396"
+          className="bg-[#141619] border border-[#2d3239] rounded-md px-2.5 py-1 text-slate-100 text-xs w-28 focus:outline-none focus:border-indigo-500 font-bold"
+        />
+      </td>
+
+      {/* Lots Stepper (Decrement / Input / Increment) */}
+      <td className="py-2.5 w-24">
+        <div className="flex items-center bg-[#141619] border border-[#2d3239] rounded-md overflow-hidden w-20">
+          <button
+            type="button"
+            disabled={disabled || currentLots <= 1}
+            onClick={() => onUpdateLeg(index, 'lots', Math.max(1, currentLots - 1))}
+            className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
+            title="Decrease Lot (-1)"
+          >
+            <Minus className="w-3 h-3" />
+          </button>
+          <input
+            type="number"
+            min="1"
+            value={currentLots}
+            onChange={(e) =>
+              onUpdateLeg(index, 'lots', Math.max(1, Number(e.target.value)))
+            }
+            className="bg-transparent text-center text-slate-100 text-xs w-full focus:outline-none font-bold py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onUpdateLeg(index, 'lots', currentLots + 1)}
+            className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
+            title="Increase Lot (+1)"
+          >
+            <Plus className="w-3 h-3" />
+          </button>
+        </div>
+      </td>
+
+      {/* Live LTP Display & 1-Click Sync */}
+      <td className="py-2.5 w-36">
+        {liveLtp !== undefined && liveLtp > 0 ? (
+          <div className="flex items-center gap-1.5">
+            <span className="text-cyan-300 font-bold text-xs flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+              ₹{liveLtp.toFixed(2)}
+            </span>
+            <button
+              type="button"
+              onClick={() => onUpdateLeg(index, 'entry_price', liveLtp)}
+              title="Copy Live LTP to Entry Price"
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 border border-cyan-500/30 transition"
+            >
+              <Zap className="w-2.5 h-2.5" />
+              Use
+            </button>
+          </div>
+        ) : (
+          <span className="text-slate-500 text-[11px] font-mono flex items-center gap-1">
+            <TrendingUp className="w-3 h-3 text-slate-600" />
+            —
+          </span>
+        )}
+      </td>
+
+      {/* Entry Price Stepper (Decrement / Input / Increment) */}
+      <td className="py-2.5 w-36">
+        <div className="flex items-center bg-[#141619] border border-[#2d3239] rounded-md overflow-hidden w-28">
+          <button
+            type="button"
+            disabled={disabled || currentEntry <= 0.05}
+            onClick={() => {
+              const nextPrice = Math.max(0.05, Math.round((currentEntry - 0.5) * 100) / 100);
+              onUpdateLeg(index, 'entry_price', nextPrice);
+            }}
+            className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
+            title="Decrease Price (-0.50)"
+          >
+            <Minus className="w-3 h-3" />
+          </button>
+          <input
+            type="number"
+            step="0.05"
+            value={leg.entry_price ?? leg.price ?? ''}
+            onChange={(e) =>
+              onUpdateLeg(index, 'entry_price', Number(e.target.value))
+            }
+            placeholder={liveLtp ? liveLtp.toFixed(2) : '0.00'}
+            className="bg-transparent text-center text-slate-100 text-xs w-full focus:outline-none font-bold py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              const nextPrice = Math.round((currentEntry + 0.5) * 100) / 100;
+              onUpdateLeg(index, 'entry_price', nextPrice);
+            }}
+            className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
+            title="Increase Price (+0.50)"
+          >
+            <Plus className="w-3 h-3" />
+          </button>
+        </div>
+      </td>
+
+      {/* Action (Reorder & Delete) */}
+      <td className="py-2.5 text-right w-20 pr-2">
+        <div className="flex items-center justify-end gap-0.5">
+          <button
+            type="button"
+            disabled={disabled || isFirst}
+            onClick={() => onMoveLeg(index, 'up')}
+            className="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-[#282d34] disabled:opacity-20 disabled:hover:bg-transparent transition"
+            title="Move Leg Up"
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            disabled={disabled || isLast}
+            onClick={() => onMoveLeg(index, 'down')}
+            className="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-[#282d34] disabled:opacity-20 disabled:hover:bg-transparent transition"
+            title="Move Leg Down"
+          >
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onRemoveLeg(index)}
+            className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+            title="Delete Leg"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+};
 
 interface LegsBuilderProps {
   legs: LegRequest[];
@@ -123,7 +358,7 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
             type="button"
             onClick={handleAddLeg}
             disabled={disabled}
-          className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-indigo-600/15 hover:bg-indigo-600/25 text-indigo-300 border border-indigo-500/30 transition shadow-sm active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-indigo-600/15 hover:bg-indigo-600/25 text-indigo-300 border border-indigo-500/30 transition shadow-sm active:scale-95 disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5" />
             Add Leg
@@ -157,202 +392,20 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#262a31] font-mono">
-              {legs.map((leg, index) => {
-                const isBuy = leg.side === 'BUY';
-                const liveLtp = livePrices[leg.exchange_instrument_id];
-                const currentLots = leg.lots || 1;
-                const currentEntry = Number(leg.entry_price ?? leg.price ?? 0);
-
-                return (
-                  <tr key={index} className="hover:bg-[#25282e]/50 transition">
-                    <td className="py-2.5 text-slate-500 w-8 pl-2">{index + 1}</td>
-
-                    {/* Side Toggle Button (B / S) */}
-                    <td className="py-2.5 w-10">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleUpdateLeg(index, 'side', isBuy ? 'SELL' : 'BUY')
-                        }
-                        title={isBuy ? 'Side: BUY (click to toggle SELL)' : 'Side: SELL (click to toggle BUY)'}
-                        className={`text-xs font-bold w-6 h-6 rounded flex items-center justify-center transition border ${
-                          isBuy
-                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
-                            : 'bg-rose-500/15 text-rose-400 border-rose-500/30 hover:bg-rose-500/25'
-                        }`}
-                      >
-                        {isBuy ? 'B' : 'S'}
-                      </button>
-                    </td>
-
-                    {/* Segment Selector */}
-                    <td className="py-2.5 w-32">
-                      <select
-                        value={leg.exchange_segment}
-                        onChange={(e) =>
-                          handleUpdateLeg(index, 'exchange_segment', Number(e.target.value))
-                        }
-                        className="bg-[#141619] border border-[#2d3239] rounded-md px-2 py-1 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
-                      >
-                        <option value={2}>NSEFO (2)</option>
-                        <option value={1}>NSECM (1)</option>
-                        <option value={12}>BSEFO (12)</option>
-                        <option value={11}>BSECM (11)</option>
-                        <option value={51}>MCXFO (51)</option>
-                      </select>
-                    </td>
-
-                    {/* Instrument ID */}
-                    <td className="py-2.5">
-                      <input
-                        type="number"
-                        value={leg.exchange_instrument_id || ''}
-                        onChange={(e) =>
-                          handleUpdateLeg(
-                            index,
-                            'exchange_instrument_id',
-                            Number(e.target.value)
-                          )
-                        }
-                        placeholder="e.g. 144396"
-                        className="bg-[#141619] border border-[#2d3239] rounded-md px-2.5 py-1 text-slate-100 text-xs w-28 focus:outline-none focus:border-indigo-500 font-bold"
-                      />
-                    </td>
-
-                    {/* Lots Stepper (Decrement / Input / Increment) */}
-                    <td className="py-2.5 w-24">
-                      <div className="flex items-center bg-[#141619] border border-[#2d3239] rounded-md overflow-hidden w-20">
-                        <button
-                          type="button"
-                          disabled={disabled || currentLots <= 1}
-                          onClick={() => handleUpdateLeg(index, 'lots', Math.max(1, currentLots - 1))}
-                          className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
-                          title="Decrease Lot (-1)"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <input
-                          type="number"
-                          min="1"
-                          value={currentLots}
-                          onChange={(e) =>
-                            handleUpdateLeg(index, 'lots', Math.max(1, Number(e.target.value)))
-                          }
-                          className="bg-transparent text-center text-slate-100 text-xs w-full focus:outline-none font-bold py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <button
-                          type="button"
-                          disabled={disabled}
-                          onClick={() => handleUpdateLeg(index, 'lots', currentLots + 1)}
-                          className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
-                          title="Increase Lot (+1)"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </td>
-
-                    {/* Live LTP Display & 1-Click Sync */}
-                    <td className="py-2.5 w-36">
-                      {liveLtp !== undefined && liveLtp > 0 ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-cyan-300 font-bold text-xs flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-                            ₹{liveLtp.toFixed(2)}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateLeg(index, 'entry_price', liveLtp)}
-                            title="Copy Live LTP to Entry Price"
-                            className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 border border-cyan-500/30 transition"
-                          >
-                            <Zap className="w-2.5 h-2.5" />
-                            Use
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-slate-500 text-[11px] font-mono flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3 text-slate-600" />
-                          —
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Entry Price Stepper (Decrement / Input / Increment) */}
-                    <td className="py-2.5 w-36">
-                      <div className="flex items-center bg-[#141619] border border-[#2d3239] rounded-md overflow-hidden w-28">
-                        <button
-                          type="button"
-                          disabled={disabled || currentEntry <= 0.05}
-                          onClick={() => {
-                            const nextPrice = Math.max(0.05, Math.round((currentEntry - 0.5) * 100) / 100);
-                            handleUpdateLeg(index, 'entry_price', nextPrice);
-                          }}
-                          className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
-                          title="Decrease Price (-0.50)"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <input
-                          type="number"
-                          step="0.05"
-                          value={leg.entry_price ?? leg.price ?? ''}
-                          onChange={(e) =>
-                            handleUpdateLeg(index, 'entry_price', Number(e.target.value))
-                          }
-                          placeholder={liveLtp ? liveLtp.toFixed(2) : '0.00'}
-                          className="bg-transparent text-center text-slate-100 text-xs w-full focus:outline-none font-bold py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <button
-                          type="button"
-                          disabled={disabled}
-                          onClick={() => {
-                            const nextPrice = Math.round((currentEntry + 0.5) * 100) / 100;
-                            handleUpdateLeg(index, 'entry_price', nextPrice);
-                          }}
-                          className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
-                          title="Increase Price (+0.50)"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </td>
-
-                    {/* Action (Reorder & Delete) */}
-                    <td className="py-2.5 text-right w-20 pr-2">
-                      <div className="flex items-center justify-end gap-0.5">
-                        <button
-                          type="button"
-                          disabled={disabled || index === 0}
-                          onClick={() => handleMoveLeg(index, 'up')}
-                          className="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-[#282d34] disabled:opacity-20 disabled:hover:bg-transparent transition"
-                          title="Move Leg Up"
-                        >
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={disabled || index === legs.length - 1}
-                          onClick={() => handleMoveLeg(index, 'down')}
-                          className="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-[#282d34] disabled:opacity-20 disabled:hover:bg-transparent transition"
-                          title="Move Leg Down"
-                        >
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={disabled}
-                          onClick={() => handleRemoveLeg(index)}
-                          className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
-                          title="Delete Leg"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {legs.map((leg, index) => (
+                <LegRow
+                  key={index}
+                  leg={leg}
+                  index={index}
+                  disabled={disabled}
+                  liveLtp={livePrices[leg.exchange_instrument_id]}
+                  onUpdateLeg={handleUpdateLeg}
+                  onRemoveLeg={handleRemoveLeg}
+                  onMoveLeg={handleMoveLeg}
+                  isFirst={index === 0}
+                  isLast={index === legs.length - 1}
+                />
+              ))}
             </tbody>
           </table>
         </div>

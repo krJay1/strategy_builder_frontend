@@ -134,15 +134,15 @@ export const App: React.FC = () => {
     }
   };
 
-  // Combine live prices from pre-validation market data feed & strategy engine snapshot
+  // Combine live prices from pre-validation market data feed & strategy engine snapshot (strictly market ticks, never user entry price)
   const livePrices: Record<number, number> = {
     ...marketDataLivePrices,
   };
   if (snapshot?.legs) {
     for (const leg of snapshot.legs) {
       const id = leg.exchange_instrument_id;
-      const ltp = leg.ltp || leg.price || 0;
-      if (id && ltp > 0) {
+      const ltp = leg.ltp;
+      if (id && ltp && ltp > 0) {
         livePrices[id] = ltp;
       }
     }
@@ -154,7 +154,7 @@ export const App: React.FC = () => {
   const activeMargin = strategyData?.margin;
   const activeLegs = snapshot?.legs || strategyData?.legs;
   const liveUnderlyingLtp = underlying.exchange_instrument_id ? livePrices[underlying.exchange_instrument_id] : undefined;
-  const currentSpot = snapshot?.underlying?.spot || liveUnderlyingLtp || strategyData?.underlying?.spot || underlying.spot || 0;
+  const currentSpot = liveUnderlyingLtp || snapshot?.underlying?.spot || strategyData?.underlying?.spot || underlying.spot || 0;
   const livePnL = snapshot?.live_pnl;
   const totalValue = snapshot?.total_value;
 

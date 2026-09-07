@@ -26,6 +26,26 @@ export const UnderlyingSection: React.FC<UnderlyingSectionProps> = ({
     { label: 'RELIANCE', segment: 1, id: 2885, defaultSpot: 1309.1 },
   ];
 
+  // Local state for instrument ID to commit on blur or Enter
+  const [localId, setLocalId] = React.useState<string>(
+    underlying.exchange_instrument_id ? String(underlying.exchange_instrument_id) : ''
+  );
+
+  React.useEffect(() => {
+    setLocalId(underlying.exchange_instrument_id ? String(underlying.exchange_instrument_id) : '');
+  }, [underlying.exchange_instrument_id]);
+
+  const handleCommitId = () => {
+    const parsed = Number(localId.trim());
+    const validId = !isNaN(parsed) && parsed > 0 ? parsed : 0;
+    if (validId !== underlying.exchange_instrument_id) {
+      onChange({
+        ...underlying,
+        exchange_instrument_id: validId,
+      });
+    }
+  };
+
   return (
     <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-3.5 shadow-sm space-y-3">
       {/* Top Row: Underlying Header & Quick Select Tabs */}
@@ -106,13 +126,14 @@ export const UnderlyingSection: React.FC<UnderlyingSectionProps> = ({
           <div className="bg-[#141619] px-2.5 py-1.5 rounded-lg border border-[#282d34] focus-within:border-indigo-500/50 transition">
             <input
               type="number"
-              value={underlying.exchange_instrument_id || ''}
-              onChange={(e) =>
-                onChange({
-                  ...underlying,
-                  exchange_instrument_id: Number(e.target.value),
-                })
-              }
+              value={localId}
+              onChange={(e) => setLocalId(e.target.value)}
+              onBlur={handleCommitId}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                }
+              }}
               placeholder="e.g. 26000"
               className="bg-transparent text-xs text-slate-100 font-mono font-bold w-full focus:outline-none"
             />

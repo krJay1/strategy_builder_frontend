@@ -14,27 +14,39 @@ interface UseMarketDataWebSocketProps {
   enabled?: boolean;
 }
 
-function extractTicks(payload: any): { id: number; ltp: number }[] {
+export function extractTicks(payload: any, inheritedId?: number): { id: number; ltp: number }[] {
   const results: { id: number; ltp: number }[] = [];
   if (!payload) return results;
 
   if (typeof payload === 'string') {
     const s = payload.trim();
+    if (!s) return results;
+
     // Handle Socket.IO frame prefix if present (e.g. 42["1501-json-partial", ...])
-    if (s.startsWith('42[') || s.startsWith('40[') || s.startsWith('43[')) {
+    const match = s.match(/^\d+\[(.*)\]$/s);
+    if (match) {
       try {
-        const jsonStr = s.slice(2);
-        const parsedArr = JSON.parse(jsonStr);
-        if (Array.isArray(parsedArr) && parsedArr.length > 1) {
-          return extractTicks(parsedArr[1]);
+        const parsedArr = JSON.parse(`[${match[1]}]`);
+        if (Array.isArray(parsedArr)) {
+          for (let i = 0; i < parsedArr.length; i++) {
+            if (
+              typeof parsedArr[i] === 'object' ||
+              (typeof parsedArr[i] === 'string' &&
+                (parsedArr[i].startsWith('{') || parsedArr[i].startsWith('[')))
+            ) {
+              results.push(...extractTicks(parsedArr[i], inheritedId));
+            }
+          }
+          if (results.length > 0) return results;
         }
       } catch {
         // ignore
       }
     }
+
     try {
-      const parsed = JSON.parse(payload);
-      return extractTicks(parsed);
+      const parsed = JSON.parse(s);
+      return extractTicks(parsed, inheritedId);
     } catch {
       return results;
     }
@@ -42,52 +54,84 @@ function extractTicks(payload: any): { id: number; ltp: number }[] {
 
   if (Array.isArray(payload)) {
     for (const item of payload) {
-      results.push(...extractTicks(item));
+      results.push(...extractTicks(item, inheritedId));
     }
     return results;
   }
 
   if (typeof payload === 'object') {
-    // Nested wrapper extraction
-    if (payload.data) {
-      results.push(...extractTicks(payload.data));
-    }
-    if (payload.CANDLE) {
-      results.push(...extractTicks(payload.CANDLE));
-    }
-    if (payload.Touchline) {
-      const id =
-        payload.ExchangeInstrumentID ||
-        payload.exchangeInstrumentID ||
-        payload.ExchangeInstrumentId ||
-        payload.instrumentId;
-      const ltp =
-        payload.Touchline.LastTradedPrice ??
-        payload.Touchline.lastTradedPrice ??
-        payload.Touchline.LTP ??
-        payload.Touchline.ltp;
-      if (id && ltp !== undefined && Number(ltp) > 0) {
-        results.push({ id: Number(id), ltp: Number(ltp) });
-      }
-    }
+    const rawId =
+      payload.exchangeInstrumentId ??
+      payload.ExchangeInstrumentID ??
+      payload.exchangeInstrumentID ??
+      payload.ExchangeInstrumentId ??
+      payload.instrumentId ??
+      payload.InstrumentID ??
+      payload.exchange_instrument_id ??
+      payload.Exchange_Instrument_Id ??
+      payload.id ??
+      payload.ID ??
+      inheritedId;
 
-    const id =
-      payload.ExchangeInstrumentID ||
-      payload.exchangeInstrumentID ||
-      payload.ExchangeInstrumentId ||
-      payload.instrumentId ||
-      payload.InstrumentID;
-
-    const ltp =
-      payload.LastTradedPrice ??
-      payload.lastTradedPrice ??
+    const rawLtp =
       payload.LTP ??
       payload.ltp ??
+      payload.LastTradedPrice ??
+      payload.lastTradedPrice ??
+      payload.LastPrice ??
+      payload.lastPrice ??
+      payload.Price ??
+      payload.price ??
       payload.Close ??
-      payload.close;
+      payload.close ??
+      payload.ClosePrice ??
+      payload.closePrice;
 
-    if (id && ltp !== undefined && Number(ltp) > 0) {
-      results.push({ id: Number(id), ltp: Number(ltp) });
+    const currentId =
+      rawId !== undefined && !isNaN(Number(rawId)) && Number(rawId) > 0
+        ? Number(rawId)
+        : undefined;
+    const currentLtp =
+      rawLtp !== undefined && !isNaN(Number(rawLtp)) && Number(rawLtp) > 0
+        ? Number(rawLtp)
+        : undefined;
+
+    if (currentId !== undefined && currentLtp !== undefined) {
+      results.push({ id: currentId, ltp: currentLtp });
+    }
+
+    // Inspect nested wrappers and event containers
+    const nestedKeys = [
+      'data',
+      'Data',
+      'DATA',
+      'TOUCHLINE',
+      'Touchline',
+      'touchline',
+      'MARKETDEPTH',
+      'MarketDepth',
+      'marketDepth',
+      'CANDLE',
+      'Candle',
+      'candle',
+      'QUOTE',
+      'Quote',
+      'quote',
+      'result',
+      'Result',
+      'RESULT',
+      'payload',
+      'Payload',
+      'PAYLOAD',
+      'OpenInterest',
+      'openInterest',
+      'OPENINTEREST',
+    ];
+
+    for (const key of nestedKeys) {
+      if (payload[key] !== undefined && payload[key] !== null) {
+        results.push(...extractTicks(payload[key], currentId || inheritedId));
+      }
     }
   }
 
@@ -256,9 +300,15 @@ export function useMarketDataWebSocket({
           }, 15000);
         };
 
-        ws.onmessage = (event) => {
+        ws.onmessage = async (event) => {
           try {
-            const ticks = extractTicks(event.data);
+            let data = event.data;
+            if (typeof Blob !== 'undefined' && data instanceof Blob) {
+              data = await data.text();
+            } else if (typeof ArrayBuffer !== 'undefined' && data instanceof ArrayBuffer) {
+              data = new TextDecoder().decode(data);
+            }
+            const ticks = extractTicks(data);
             if (ticks.length > 0) {
               for (const { id, ltp } of ticks) {
                 pendingTicksRef.current[id] = ltp;
@@ -401,7 +451,7 @@ export function useMarketDataWebSocket({
     if (token && enabled) {
       debounceTimerRef.current = setTimeout(() => {
         syncSubscriptions();
-      }, 250);
+      }, 100);
     }
 
     return () => {
