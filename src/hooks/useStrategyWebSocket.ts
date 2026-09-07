@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { WSMessage, LiveStrategyUpdate } from '../types/strategy';
 import { notify } from '../utils/toast';
+import { ENV } from '../config';
 
 export type WSConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -8,7 +9,8 @@ export function useStrategyWebSocket(
   token: string,
   userId: string,
   clientId: string,
-  autoConnect = true
+  autoConnect = true,
+  strategyWsUrl?: string
 ) {
   const [status, setStatus] = useState<WSConnectionStatus>('disconnected');
   const [snapshot, setSnapshot] = useState<LiveStrategyUpdate | null>(null);
@@ -27,20 +29,33 @@ export function useStrategyWebSocket(
     setStatus('connecting');
     setError(null);
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-
     // Clean token (strip Bearer if present)
     const cleanToken = token.startsWith('Bearer ') ? token.slice(7).trim() : token.trim();
+    const effectiveUserId = (userId || ENV.DEFAULT_USER_ID).trim();
+    const effectiveClientId = (clientId || ENV.DEFAULT_CLIENT_ID).trim();
 
-    // Construct WebSocket URL with Query Parameters
-    const params = new URLSearchParams();
-    if (userId) params.set('user_id', userId.trim());
-    if (cleanToken) params.set('token', cleanToken);
-    if (clientId) params.set('client_id', clientId.trim());
+    let baseWsUrl = strategyWsUrl?.trim() || ENV.STRATEGY_WS_URL;
+    if (!baseWsUrl) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      baseWsUrl = `${protocol}//${host}/ws/strategy`;
+    }
 
-    const queryString = params.toString();
-    const wsUrl = `${protocol}//${host}/ws/strategy${queryString ? '?' + queryString : ''}`;
+    let wsUrl = '';
+    try {
+      const parsed = new URL(baseWsUrl, window.location.origin);
+      if (effectiveUserId) parsed.searchParams.set('user_id', effectiveUserId);
+      if (cleanToken) parsed.searchParams.set('token', cleanToken);
+      if (effectiveClientId) parsed.searchParams.set('client_id', effectiveClientId);
+      wsUrl = parsed.toString();
+    } catch {
+      const params = new URLSearchParams();
+      if (effectiveUserId) params.set('user_id', effectiveUserId);
+      if (cleanToken) params.set('token', cleanToken);
+      if (effectiveClientId) params.set('client_id', effectiveClientId);
+      const queryString = params.toString();
+      wsUrl = `${baseWsUrl}${queryString ? (baseWsUrl.includes('?') ? '&' : '?') + queryString : ''}`;
+    }
 
     try {
       const ws = new WebSocket(wsUrl);
@@ -51,13 +66,13 @@ export function useStrategyWebSocket(
         setError(null);
 
         // Also send auth action frame for compatibility
-        if (cleanToken || userId) {
+        if (cleanToken || effectiveUserId) {
           ws.send(
             JSON.stringify({
               action: 'auth',
               token: cleanToken,
-              user_id: userId,
-              client_id: clientId,
+              user_id: effectiveUserId,
+              client_id: effectiveClientId,
             })
           );
         }
@@ -104,7 +119,7 @@ export function useStrategyWebSocket(
       setStatus('error');
       setError(err.message || 'Failed to initialize WebSocket');
     }
-  }, [token, userId, clientId]);
+  }, [token, userId, clientId, strategyWsUrl]);
 
   const disconnect = useCallback(() => {
     if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
@@ -127,7 +142,7 @@ export function useStrategyWebSocket(
     return () => {
       disconnect();
     };
-  }, [autoConnect, token, userId, clientId, connect, disconnect]);
+  }, [autoConnect, token, userId, clientId, strategyWsUrl, connect, disconnect]);
 
   return {
     status,

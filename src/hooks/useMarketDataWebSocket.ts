@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { strategyApi, InstrumentSubscriptionItem } from '../api/strategyApi';
+import { ENV } from '../config';
 
 export type MarketWSStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -180,11 +181,12 @@ export function useMarketDataWebSocket({
 
   // Construct WebSocket Endpoint URL
   const wsEndpoint = useMemo(() => {
-    let base = marketWsUrl?.trim();
+    let base = marketWsUrl?.trim() || ENV.MARKET_WS_URL;
     if (!base) {
-      if (apiUrl && apiUrl.startsWith('http')) {
+      const resolvedApi = apiUrl?.trim() || ENV.API_URL;
+      if (resolvedApi && resolvedApi.startsWith('http')) {
         try {
-          const u = new URL(apiUrl);
+          const u = new URL(resolvedApi);
           // If pointing to a remote host (e.g. uat.firstdemat.in), use its remote host
           if (!u.hostname.includes('localhost') && !u.hostname.includes('127.0.0.1')) {
             const proto = u.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -204,10 +206,11 @@ export function useMarketDataWebSocket({
     }
 
     const cleanToken = token.startsWith('Bearer ') ? token.slice(7).trim() : token.trim();
+    const effectiveUserId = (userId || ENV.DEFAULT_USER_ID).trim();
     try {
       const url = new URL(base, window.location.origin);
-      if (userId) {
-        url.searchParams.set('User-Id', userId.trim());
+      if (effectiveUserId) {
+        url.searchParams.set('User-Id', effectiveUserId);
       }
       if (cleanToken) {
         url.searchParams.set('Access-Token', cleanToken);

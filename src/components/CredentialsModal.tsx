@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { KeyRound, Server, User, X, Check } from 'lucide-react';
 import { UserCredentials, saveCredentials } from '../api/strategyApi';
+import { ENV } from '../config';
 
 interface CredentialsModalProps {
   isOpen: boolean;
@@ -28,8 +29,8 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({
     e.preventDefault();
     const updated: UserCredentials = {
       token: token.trim(),
-      userId: userId.trim(),
-      clientId: clientId.trim(),
+      userId: userId.trim() || ENV.DEFAULT_USER_ID,
+      clientId: clientId.trim() || ENV.DEFAULT_CLIENT_ID,
       apiUrl: apiUrl.trim(),
       marketWsUrl: marketWsUrl.trim(),
     };
@@ -85,8 +86,8 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({
                 type="text"
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
-                placeholder="e.g. AA002"
-                className="w-full text-xs bg-[#141619] border border-[#2d3239] rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                placeholder={`Default: ${ENV.DEFAULT_USER_ID}`}
+                className="w-full text-xs bg-[#141619] border border-[#2d3239] rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono placeholder:text-slate-600"
                 required
               />
             </div>
@@ -99,8 +100,8 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({
                 type="text"
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
-                placeholder="e.g. AA002"
-                className="w-full text-xs bg-[#141619] border border-[#2d3239] rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                placeholder={`Default: ${ENV.DEFAULT_CLIENT_ID}`}
+                className="w-full text-xs bg-[#141619] border border-[#2d3239] rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono placeholder:text-slate-600"
                 required
               />
             </div>
@@ -115,7 +116,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="Leave empty for local proxy or https://uat.firstdemat.in"
+                placeholder={`Leave empty for proxy or ${ENV.SYMPHONY_API_URL}`}
                 className="w-full text-xs bg-[#141619] border border-[#2d3239] rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono placeholder:text-slate-600"
               />
             </div>
@@ -128,7 +129,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({
                 type="text"
                 value={marketWsUrl}
                 onChange={(e) => setMarketWsUrl(e.target.value)}
-                placeholder="Default: ws://localhost:8081/ws"
+                placeholder="Leave empty for auto-derive / proxy"
                 className="w-full text-xs bg-[#141619] border border-[#2d3239] rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono placeholder:text-slate-600"
               />
             </div>

@@ -10,9 +10,10 @@ import { MarginCard } from './components/MarginCard';
 import { EnrichedLegsTable } from './components/EnrichedLegsTable';
 import { useStrategyWebSocket } from './hooks/useStrategyWebSocket';
 import { useMarketDataWebSocket } from './hooks/useMarketDataWebSocket';
-import { strategyApi, UserCredentials, InstrumentSubscriptionItem } from './api/strategyApi';
+import { strategyApi, UserCredentials, InstrumentSubscriptionItem, getStoredCredentials } from './api/strategyApi';
 import { StrategyRequest, StrategyResponse, LegRequest, UnderlyingRequest, toSegmentNumber } from './types/strategy';
 import { notify, Toaster } from './utils/toast';
+import { ENV } from './config';
 
 const getTodayDateString = (): string => {
   const now = new Date();
@@ -23,21 +24,15 @@ const getTodayDateString = (): string => {
 };
 
 export const App: React.FC = () => {
-  // Credentials State
-  const [credentials, setCredentials] = useState<UserCredentials>(() => ({
-    token: localStorage.getItem('sym_token') || '',
-    userId: localStorage.getItem('sym_user_id') || 'AA002',
-    clientId: localStorage.getItem('sym_client_id') || 'AA002',
-    apiUrl: localStorage.getItem('api_url') || '',
-    marketWsUrl: localStorage.getItem('market_ws_url') || '',
-  }));
+  // Credentials State (Initialized from stored credentials or ENV defaults)
+  const [credentials, setCredentials] = useState<UserCredentials>(() => getStoredCredentials());
   const [isCredsOpen, setIsCredsOpen] = useState(false);
 
-  // Strategy Form State (Defaults to Reliance Call Spread Sample)
+  // Strategy Form State (Defaults to ENV Configured Underlying)
   const [underlying, setUnderlying] = useState<UnderlyingRequest>({
-    exchange_segment: 1, // NSECM
-    exchange_instrument_id: 2885, // RELIANCE
-    spot: 1309.1,
+    exchange_segment: ENV.DEFAULT_UNDERLYING_SEGMENT,
+    exchange_instrument_id: ENV.DEFAULT_UNDERLYING_ID,
+    spot: ENV.DEFAULT_UNDERLYING_SPOT,
   });
   const [targetDate, setTargetDate] = useState<string>(() => getTodayDateString());
   const [legs, setLegs] = useState<LegRequest[]>([
@@ -313,7 +308,7 @@ export const App: React.FC = () => {
         credentials={credentials}
         onSave={(c) => {
           setCredentials(c);
-          notify.success('Credentials Updated', `Session token configured for user ${c.userId || 'AA002'}`);
+          notify.success('Credentials Updated', `Session token configured for user ${c.userId || ENV.DEFAULT_USER_ID}`);
         }}
       />
 
