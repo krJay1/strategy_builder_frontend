@@ -12,8 +12,7 @@ import { useStrategyWebSocket } from './hooks/useStrategyWebSocket';
 import { useMarketDataWebSocket } from './hooks/useMarketDataWebSocket';
 import { strategyApi, UserCredentials, InstrumentSubscriptionItem } from './api/strategyApi';
 import { StrategyRequest, StrategyResponse, LegRequest, UnderlyingRequest, toSegmentNumber } from './types/strategy';
-import { Toaster } from './components/ui/sonner';
-import { notify } from './utils/toast';
+import { notify, Toaster } from './utils/toast';
 
 const getTodayDateString = (): string => {
   const now = new Date();

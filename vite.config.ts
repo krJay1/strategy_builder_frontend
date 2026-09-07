@@ -13,6 +13,14 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
+      '/api/v2/strategy': {
+        target: 'http://localhost:8091',
+        changeOrigin: true,
+      },
+      '/api/v1': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:8091',
         changeOrigin: true,

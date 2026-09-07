@@ -44,3 +44,8 @@ Thumbs.db
 .stylelintcache
 *.tsbuildinfo
 .turbo/
+
+# AI Agent configuration, rules, and documentation (place all new doc/spec files inside .agents/docs/)
+.agents/
+AGENTS.md
+GEMINI.md
