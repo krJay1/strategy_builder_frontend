@@ -106,7 +106,33 @@ export const App: React.FC = () => {
     status: wsStatus,
     snapshot,
     connect,
+    clearSnapshot: clearStrategySnapshot,
   } = useStrategyWebSocket(credentials.token, credentials.userId, credentials.clientId, true);
+
+  // Handle Underlying Change: Unsubscribe previous, clear legs & strategy, subscribe new
+  const handleUnderlyingChange = (nextUnderlying: UnderlyingRequest) => {
+    const isInstrumentChanged =
+      toSegmentNumber(nextUnderlying.exchange_segment) !== toSegmentNumber(underlying.exchange_segment) ||
+      Number(nextUnderlying.exchange_instrument_id) !== Number(underlying.exchange_instrument_id);
+
+    setUnderlying(nextUnderlying);
+
+    if (isInstrumentChanged) {
+      // 1. Clear strategy legs
+      setLegs([]);
+
+      // 2. Clear strategy calculations & live stream snapshot
+      setStrategyData(null);
+      clearStrategySnapshot();
+
+      // 3. Unsubscribe strategy in backend if credentials are configured
+      if (credentials.token) {
+        strategyApi.unsubscribeStrategy().catch((err) => {
+          console.debug('Strategy unsubscribe on underlying change:', err);
+        });
+      }
+    }
+  };
 
   // Combine live prices from pre-validation market data feed & strategy engine snapshot
   const livePrices: Record<number, number> = {
@@ -203,6 +229,7 @@ export const App: React.FC = () => {
     try {
       await strategyApi.unsubscribeStrategy();
       setStrategyData(null);
+      clearStrategySnapshot();
       notify.info('Strategy Unsubscribed', 'Disconnected from real-time stream.');
     } catch (err: any) {
       notify.apiError('Unsubscribe Failed', err);
@@ -234,7 +261,7 @@ export const App: React.FC = () => {
             {/* 1. Underlying Selector */}
             <UnderlyingSection
               underlying={underlying}
-              onChange={setUnderlying}
+              onChange={handleUnderlyingChange}
               targetDate={targetDate}
               onTargetDateChange={setTargetDate}
               liveSpot={currentSpot}

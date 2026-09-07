@@ -398,10 +398,10 @@ export function useMarketDataWebSocket({
       clearTimeout(debounceTimerRef.current);
     }
 
-    if (token && enabled && instrumentsFingerprint) {
+    if (token && enabled) {
       debounceTimerRef.current = setTimeout(() => {
         syncSubscriptions();
-      }, 400);
+      }, 250);
     }
 
     return () => {

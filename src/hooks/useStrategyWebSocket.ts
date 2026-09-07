@@ -115,6 +115,11 @@ export function useStrategyWebSocket(
     setStatus('disconnected');
   }, []);
 
+  const clearSnapshot = useCallback(() => {
+    setSnapshot(null);
+    setError(null);
+  }, []);
+
   useEffect(() => {
     if (autoConnect && (token || userId)) {
       connect();
@@ -131,5 +136,6 @@ export function useStrategyWebSocket(
     error,
     connect,
     disconnect,
+    clearSnapshot,
   };
 }
