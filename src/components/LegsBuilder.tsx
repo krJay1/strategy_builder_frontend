@@ -8,8 +8,7 @@ import {
   Play,
   Zap,
   ArrowUpDown,
-  ChevronUp,
-  ChevronDown,
+  GripVertical,
 } from 'lucide-react';
 import { LegRequest } from '../types/strategy';
 
@@ -20,9 +19,13 @@ interface LegRowProps {
   liveLtp?: number;
   onUpdateLeg: (index: number, field: keyof LegRequest, value: any) => void;
   onRemoveLeg: (index: number) => void;
-  onMoveLeg: (index: number, direction: 'up' | 'down') => void;
-  isFirst: boolean;
-  isLast: boolean;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
+  onDragStart: (e: React.DragEvent<HTMLTableRowElement>, index: number) => void;
+  onDragOver: (e: React.DragEvent<HTMLTableRowElement>, index: number) => void;
+  onDragLeave: (e: React.DragEvent<HTMLTableRowElement>, index: number) => void;
+  onDrop: (e: React.DragEvent<HTMLTableRowElement>, index: number) => void;
+  onDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => void;
 }
 
 const LegRow: React.FC<LegRowProps> = ({
@@ -32,9 +35,13 @@ const LegRow: React.FC<LegRowProps> = ({
   liveLtp,
   onUpdateLeg,
   onRemoveLeg,
-  onMoveLeg,
-  isFirst,
-  isLast,
+  isDragging,
+  isDropTarget,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
 }) => {
   const isBuy = leg.side === 'BUY';
   const currentLots = leg.lots || 1;
@@ -58,8 +65,35 @@ const LegRow: React.FC<LegRowProps> = ({
   };
 
   return (
-    <tr className="hover:bg-[#25282e]/50 transition">
-      <td className="py-2.5 text-slate-500 w-8 pl-2">{index + 1}</td>
+    <tr
+      draggable={!disabled}
+      onDragStart={(e) => onDragStart(e, index)}
+      onDragOver={(e) => onDragOver(e, index)}
+      onDragLeave={(e) => onDragLeave(e, index)}
+      onDrop={(e) => onDrop(e, index)}
+      onDragEnd={onDragEnd}
+      className={`group transition-all duration-150 ${
+        isDragging
+          ? 'opacity-30 bg-indigo-950/40 border-2 border-dashed border-indigo-500/60 scale-[0.99]'
+          : isDropTarget
+          ? 'bg-indigo-500/15 border-t-2 border-indigo-500 shadow-md'
+          : 'hover:bg-[#25282e]/50'
+      }`}
+    >
+      {/* Drag & Drop Handle */}
+      <td className="py-2.5 w-6 pl-2 text-center">
+        <div
+          className={`cursor-grab active:cursor-grabbing p-1 rounded hover:bg-[#2d3239] transition ${
+            disabled ? 'opacity-20 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-300'
+          }`}
+          title="Drag and drop to rearrange order"
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </div>
+      </td>
+
+      {/* Index Number */}
+      <td className="py-2.5 text-slate-500 w-7 font-mono font-semibold text-xs">{index + 1}</td>
 
       {/* Side Toggle Button (B / S) */}
       <td className="py-2.5 w-10">
@@ -212,32 +246,14 @@ const LegRow: React.FC<LegRowProps> = ({
         </div>
       </td>
 
-      {/* Action (Reorder & Delete) */}
-      <td className="py-2.5 text-right w-20 pr-2">
-        <div className="flex items-center justify-end gap-0.5">
-          <button
-            type="button"
-            disabled={disabled || isFirst}
-            onClick={() => onMoveLeg(index, 'up')}
-            className="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-[#282d34] disabled:opacity-20 disabled:hover:bg-transparent transition"
-            title="Move Leg Up"
-          >
-            <ChevronUp className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            disabled={disabled || isLast}
-            onClick={() => onMoveLeg(index, 'down')}
-            className="p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-[#282d34] disabled:opacity-20 disabled:hover:bg-transparent transition"
-            title="Move Leg Down"
-          >
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
+      {/* Action (Delete) */}
+      <td className="py-2.5 text-right w-12 pr-2">
+        <div className="flex items-center justify-end">
           <button
             type="button"
             disabled={disabled}
             onClick={() => onRemoveLeg(index)}
-            className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+            className="p-1.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
             title="Delete Leg"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -265,6 +281,9 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
   onAnalyze,
   isLoading,
 }) => {
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+
   const handleAddLeg = () => {
     const newLeg: LegRequest = {
       exchange_segment: 2, // NSEFO default
@@ -281,14 +300,6 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
     onChange(updated);
   };
 
-  const handleMoveLeg = (index: number, direction: 'up' | 'down') => {
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= legs.length) return;
-    const updated = [...legs];
-    const [moved] = updated.splice(index, 1);
-    updated.splice(newIndex, 0, moved);
-    onChange(updated);
-  };
 
   const handleAutoArrange = () => {
     // Reorder BUY hedge legs first, then SELL legs
@@ -307,6 +318,62 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
     onChange(updated);
   };
 
+  // Drag-and-Drop Event Handlers (HTML5 Drag & Drop API)
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, index: number) => {
+    if (disabled) return;
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>, index: number) => {
+    if (disabled || draggedIndex === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dropTargetIndex !== index) {
+      setDropTargetIndex(index);
+    }
+  };
+
+  const handleDragLeave = (_e: React.DragEvent<HTMLTableRowElement>, index: number) => {
+    if (dropTargetIndex === index) {
+      setDropTargetIndex(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetIndex: number) => {
+    e.preventDefault();
+    if (disabled) return;
+
+    const sourceIndex = draggedIndex !== null
+      ? draggedIndex
+      : Number(e.dataTransfer.getData('text/plain'));
+
+    if (
+      isNaN(sourceIndex) ||
+      sourceIndex === targetIndex ||
+      sourceIndex < 0 ||
+      sourceIndex >= legs.length
+    ) {
+      setDraggedIndex(null);
+      setDropTargetIndex(null);
+      return;
+    }
+
+    const reordered = [...legs];
+    const [removed] = reordered.splice(sourceIndex, 1);
+    reordered.splice(targetIndex, 0, removed);
+
+    onChange(reordered);
+    setDraggedIndex(null);
+    setDropTargetIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDropTargetIndex(null);
+  };
+
   return (
     <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
@@ -315,6 +382,11 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
           <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
             Strategy Legs ({legs.length})
           </h3>
+          {legs.length > 1 && (
+            <span className="text-[10px] text-slate-500 font-sans hidden sm:inline">
+              (Drag rows to reorder)
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {/* Auto-Arrange (BUY First) Button */}
@@ -381,7 +453,8 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="text-slate-400 border-b border-[#2d3239] text-[11px] uppercase tracking-wider">
-                <th className="pb-2.5 font-semibold text-slate-500 pl-2">#</th>
+                <th className="pb-2.5 font-semibold text-slate-500 pl-2 w-6 text-center"></th>
+                <th className="pb-2.5 font-semibold text-slate-500 w-7">#</th>
                 <th className="pb-2.5 font-semibold">Side</th>
                 <th className="pb-2.5 font-semibold">Segment</th>
                 <th className="pb-2.5 font-semibold">Instrument ID</th>
@@ -401,9 +474,13 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
                   liveLtp={livePrices[leg.exchange_instrument_id]}
                   onUpdateLeg={handleUpdateLeg}
                   onRemoveLeg={handleRemoveLeg}
-                  onMoveLeg={handleMoveLeg}
-                  isFirst={index === 0}
-                  isLast={index === legs.length - 1}
+                  isDragging={draggedIndex === index}
+                  isDropTarget={dropTargetIndex === index}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onDragEnd={handleDragEnd}
                 />
               ))}
             </tbody>

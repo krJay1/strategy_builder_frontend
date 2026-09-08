@@ -247,9 +247,9 @@ export const App: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-[1700px] w-full mx-auto p-4 md:p-6 space-y-4">
+      <main className="flex-1 w-full mx-auto px-2 sm:px-3 md:px-12 py-3 space-y-3.5">
         {/* Main 2-Column Responsive Workspace Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
           {/* LEFT COLUMN: Strategy Configuration & Margin */}
           <div className="lg:col-span-5 xl:col-span-5 space-y-4">
             {/* 1. Underlying Selector */}
@@ -285,6 +285,7 @@ export const App: React.FC = () => {
               greeks={activeGreeks}
               livePnL={livePnL}
               totalValue={totalValue}
+              legs={activeLegs}
             />
 
             {/* 2. Summary Analytics Cards */}

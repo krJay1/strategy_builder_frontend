@@ -38,9 +38,30 @@
   background: #334155;
 }
 
-/* Number input spinners removal */
-input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button { 
-  -webkit-appearance: none; 
-  margin: 0; 
+/* Custom sleek range slider */
+input[type="range"].range-slider-custom {
+  -webkit-appearance: none;
+  background: transparent;
 }
+input[type="range"].range-slider-custom::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #282d34;
+}
+input[type="range"].range-slider-custom::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #06b6d4;
+  cursor: pointer;
+  margin-top: -5px;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+  border: 2px solid #ffffff;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+input[type="range"].range-slider-custom::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.9);
+}
+

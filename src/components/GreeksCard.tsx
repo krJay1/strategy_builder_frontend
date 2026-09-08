@@ -12,7 +12,7 @@ export const GreeksCard: React.FC<GreeksCardProps> = ({ greeks }) => {
   const greekItems = [
     {
       name: 'Delta (Δ)',
-      value: greeks.delta !== undefined ? greeks.delta.toFixed(2) : '0.00',
+      value: greeks.delta !== undefined ? (greeks.delta >= 0 ? `+${greeks.delta.toFixed(2)}` : greeks.delta.toFixed(2)) : '0.00',
       desc: 'Position direction (Total Qty)',
       color: (greeks.delta || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400',
     },
@@ -20,7 +20,7 @@ export const GreeksCard: React.FC<GreeksCardProps> = ({ greeks }) => {
       name: 'Gamma (Γ)',
       value: greeks.gamma !== undefined ? greeks.gamma.toFixed(4) : '0.0000',
       desc: 'Position acceleration',
-      color: 'text-indigo-300',
+      color: 'text-slate-100',
     },
     {
       name: 'Theta (Θ)',
@@ -32,7 +32,7 @@ export const GreeksCard: React.FC<GreeksCardProps> = ({ greeks }) => {
       name: 'Vega (ν)',
       value: greeks.vega !== undefined ? `₹${greeks.vega.toFixed(1)}` : '0.0',
       desc: 'Net ₹ per 1% IV (Total Qty)',
-      color: 'text-cyan-300',
+      color: 'text-slate-100',
     },
     {
       name: 'Rho (ρ)',
@@ -44,7 +44,7 @@ export const GreeksCard: React.FC<GreeksCardProps> = ({ greeks }) => {
       name: 'Strategy IV',
       value: greeks.iv_percent ? `${greeks.iv_percent.toFixed(1)}%` : (greeks.implied_vol ? `${(greeks.implied_vol * 100).toFixed(1)}%` : '—'),
       desc: 'Weighted Implied Vol',
-      color: 'text-amber-300',
+      color: 'text-slate-100',
     },
   ];
 

@@ -37,11 +37,11 @@ export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
               <th className="pb-2.5 font-semibold">Expiry</th>
               <th className="pb-2.5 font-semibold">Strike</th>
               <th className="pb-2.5 font-semibold">Qty</th>
-              <th className="pb-2.5 font-semibold">IV %</th>
+              <th className="pb-2.5 font-semibold" title="Implied Volatility">IV %</th>
               <th className="pb-2.5 font-semibold" title="Delta per 1 share">Delta (Unit)</th>
               <th className="pb-2.5 font-semibold" title="Gamma per 1 share">Gamma (Unit)</th>
-              <th className="pb-2.5 font-semibold text-rose-300" title="Theta decay per 1 share per day">Theta (₹/share)</th>
-              <th className="pb-2.5 font-semibold text-cyan-300" title="Vega sensitivity per 1 share">Vega (₹/share)</th>
+              <th className="pb-2.5 font-semibold" title="Theta decay per 1 share per day">Theta (₹/share)</th>
+              <th className="pb-2.5 font-semibold" title="Vega sensitivity per 1 share">Vega (₹/share)</th>
               <th className="pb-2.5 text-right font-semibold pr-2">Cash Flow / P&L</th>
             </tr>
           </thead>
@@ -65,7 +65,7 @@ export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
                           ? 'bg-blue-500/15 text-blue-300 border border-blue-500/25'
                           : leg.option_type === 'PE'
                           ? 'bg-amber-500/15 text-amber-300 border border-amber-500/25'
-                          : 'bg-slate-800 text-slate-300'
+                          : 'bg-slate-800 text-slate-300 border border-slate-700'
                       }`}
                     >
                       {leg.option_type || '—'}
@@ -73,10 +73,10 @@ export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
                   </td>
                   <td className="py-2.5">
                     <span
-                      className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
                         isBuy
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'
+                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/25'
                       }`}
                     >
                       {leg.side}
@@ -84,7 +84,7 @@ export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
                   </td>
                   <td className="py-2.5 text-slate-400">{leg.expiry || '—'}</td>
                   <td className="py-2.5 text-slate-200 font-bold">
-                    {leg.strike > 0 ? `₹${leg.strike}` : '—'}
+                    {leg.strike > 0 ? `₹${leg.strike.toLocaleString('en-IN')}` : '—'}
                   </td>
                   <td className="py-2.5 text-slate-300">
                     {leg.quantity}{' '}
@@ -92,23 +92,21 @@ export const EnrichedLegsTable: React.FC<EnrichedLegsTableProps> = ({
                       ({leg.lots} {leg.lot_size ? `× ${leg.lot_size}` : 'lots'})
                     </span>
                   </td>
-                  <td className="py-2.5 text-amber-300">
+                  <td className="py-2.5 text-slate-300 font-medium">
                     {leg.iv_percent ? `${leg.iv_percent.toFixed(1)}%` : '—'}
                   </td>
-                  <td
-                    className={`py-2.5 ${
-                      (leg.greeks?.delta || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                    }`}
-                  >
-                    {leg.greeks?.delta !== undefined ? leg.greeks.delta.toFixed(3) : '—'}
+                  <td className="py-2.5 text-slate-200 font-medium">
+                    {leg.greeks?.delta !== undefined
+                      ? (leg.greeks.delta >= 0 ? `+${leg.greeks.delta.toFixed(3)}` : leg.greeks.delta.toFixed(3))
+                      : '—'}
                   </td>
-                  <td className="py-2.5 text-purple-400">
+                  <td className="py-2.5 text-slate-300">
                     {leg.greeks?.gamma !== undefined ? leg.greeks.gamma.toFixed(4) : '—'}
                   </td>
-                  <td className="py-2.5 text-rose-400">
+                  <td className="py-2.5 text-slate-300">
                     {leg.greeks?.theta !== undefined ? leg.greeks.theta.toFixed(2) : '—'}
                   </td>
-                  <td className="py-2.5 text-cyan-400">
+                  <td className="py-2.5 text-slate-300">
                     {leg.greeks?.vega !== undefined ? leg.greeks.vega.toFixed(2) : '—'}
                   </td>
                   <td

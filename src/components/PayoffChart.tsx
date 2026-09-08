@@ -1,9 +1,8 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { PayoffResult, PortfolioGreeks } from '../types/strategy';
+import { PayoffResult, PortfolioGreeks, LiveLegUpdate } from '../types/strategy';
 import {
   LineChart as ChartIcon,
   ShieldCheck,
-  Sliders,
   Info,
   CheckCircle2,
   AlertTriangle,
@@ -19,6 +18,7 @@ interface PayoffChartProps {
   greeks?: PortfolioGreeks;
   livePnL?: number;
   totalValue?: number;
+  legs?: LiveLegUpdate[];
 }
 
 export const PayoffChart: React.FC<PayoffChartProps> = ({
@@ -27,6 +27,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
   greeks,
   livePnL,
   totalValue,
+  legs: _legs,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -47,9 +48,6 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
     x: number;
     y: number;
   } | null>(null);
-
-  // Simulated spot slider state
-  const [simulatedSpot, setSimulatedSpot] = useState<number | null>(null);
 
   // SVG Dimensions
   const width = 850;
@@ -72,7 +70,10 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
     sd2Low,
     sd2High,
   } = useMemo(() => {
-    if (!payoff?.payoff_at_expiry || payoff.payoff_at_expiry.length === 0) {
+    const rawList = payoff?.payoff_at_expiry || payoff?.payoffs_at_expiry || [];
+    const targetList = payoff?.payoff_at_target || payoff?.payoffs_at_target || [];
+
+    if (rawList.length === 0) {
       return {
         points: [],
         minSpot: 0,
@@ -88,24 +89,35 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
       };
     }
 
-    const pts = payoff.payoff_at_expiry.map((pt, i) => {
-      const tgt = payoff.payoff_at_target && payoff.payoff_at_target[i];
+    const pts = rawList.map((pt, i) => {
+      const tgt = targetList[i];
+      const s = pt.spot ?? pt.at ?? 0;
+      const expP = pt.pnl ?? pt.payoff ?? 0;
+      const tgtP = tgt ? (tgt.pnl ?? tgt.payoff ?? undefined) : undefined;
       return {
-        spot: pt.spot,
-        expiryPnL: pt.pnl,
-        targetPnL: tgt ? tgt.pnl : undefined,
+        spot: s,
+        expiryPnL: expP,
+        targetPnL: tgtP,
       };
     });
 
     pts.sort((a, b) => a.spot - b.spot);
 
     const spots = pts.map((p) => p.spot);
+    const minS = Math.min(...spots);
+    const maxS = Math.max(...spots);
+
+    // Sensibull Standard Deviation Calculation (1 SD = 68.2%, 2 SD = 95.4%)
+    const iv = (greeks?.implied_vol && greeks.implied_vol > 0) ? greeks.implied_vol : 0.15;
+    const daysToExpiry = 7; // Typical weekly baseline or ~0.019 years
+    const sdMove = (payoff?.standard_deviation && payoff.standard_deviation > 0)
+      ? payoff.standard_deviation
+      : (spotPrice > 0 ? spotPrice * iv * Math.sqrt(daysToExpiry / 365) : (maxS - minS) * 0.08);
+
     const pnls = pts.flatMap((p) =>
       p.targetPnL !== undefined ? [p.expiryPnL, p.targetPnL] : [p.expiryPnL]
     );
 
-    const minS = Math.min(...spots);
-    const maxS = Math.max(...spots);
     let minP = Math.min(...pnls, 0);
     let maxP = Math.max(...pnls, 0);
 
@@ -116,14 +128,9 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
 
     const zY = padding.top + plotHeight * (1 - (0 - minP) / (maxP - minP));
 
-    const bes = Array.isArray(payoff.break_evens)
+    const bes = Array.isArray(payoff?.break_evens)
       ? payoff.break_evens.map((b: any) => (typeof b === 'number' ? b : b.spot))
       : [];
-
-    // Sensibull Standard Deviation Calculation (1 SD = 68.2%, 2 SD = 95.4%)
-    const iv = (greeks?.implied_vol && greeks.implied_vol > 0) ? greeks.implied_vol : 0.15;
-    const daysToExpiry = 7; // Typical weekly baseline or ~0.019 years
-    const sdMove = spotPrice > 0 ? spotPrice * iv * Math.sqrt(daysToExpiry / 365) : (maxS - minS) * 0.08;
 
     return {
       points: pts,
@@ -152,8 +159,6 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
     );
   }
 
-  // Active Spot (either hovered, simulated, or live)
-  const activeSpot = hoverData?.spot || simulatedSpot || spotPrice;
 
   // Coordinate conversion
   const getX = (spot: number) => {
@@ -244,10 +249,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
 
   // Coordinates for key markers
   const spotX = spotPrice > 0 ? getX(spotPrice) : null;
-  const simulatedX = simulatedSpot ? getX(simulatedSpot) : null;
-  const simulatedPoint = simulatedSpot
-    ? points.find((p) => Math.abs(p.spot - simulatedSpot) <= (maxSpot - minSpot) / (points.length * 2)) || points[0]
-    : null;
+
 
   // Standard Deviation coordinates (1 SD = 68.2%, 2 SD = 95.4%)
   const sd1LowX = sd1Low > minSpot ? getX(sd1Low) : null;
@@ -391,6 +393,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
         )}
       </div>
 
+
       {/* 3. Main View: Payoff Chart OR Payoff Table */}
       {viewMode === 'chart' ? (
         <div
@@ -424,6 +427,11 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
               {/* Clip path for Loss Zone */}
               <clipPath id="clipLoss">
                 <rect x={padding.left} y={zeroY} width={plotWidth} height={Math.max(0, height - padding.bottom - zeroY)} />
+              </clipPath>
+
+              {/* Global Plot Area Clip */}
+              <clipPath id="chartPlotClip">
+                <rect x={padding.left} y={padding.top} width={plotWidth} height={plotHeight} />
               </clipPath>
             </defs>
 
@@ -612,10 +620,10 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
 
             {/* Shaded Profit & Loss Areas */}
             {showZones && (
-              <>
+              <g clipPath="url(#chartPlotClip)">
                 <path d={expiryAreaPath} fill="url(#profitFill)" clipPath="url(#clipProfit)" />
                 <path d={expiryAreaPath} fill="url(#lossFill)" clipPath="url(#clipLoss)" />
-              </>
+              </g>
             )}
 
             {/* Zero P&L Reference Axis Line */}
@@ -702,57 +710,32 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
               </g>
             )}
 
-            {/* Simulated Spot Price Marker */}
-            {simulatedX !== null && simulatedPoint && simulatedX >= padding.left && simulatedX <= width - padding.right && (
-              <g>
-                <line
-                  x1={simulatedX}
-                  y1={padding.top}
-                  x2={simulatedX}
-                  y2={height - padding.bottom}
-                  stroke="#a855f7"
-                  strokeDasharray="3 3"
-                  strokeWidth="1.5"
-                />
-                <circle
-                  cx={simulatedX}
-                  cy={getY(simulatedPoint.expiryPnL)}
-                  r="5"
-                  fill="#a855f7"
-                  stroke="#ffffff"
-                  strokeWidth="2"
-                />
-                <g transform={`translate(${simulatedX - 36}, ${padding.top - 18})`}>
-                  <rect width="72" height="16" rx="4" fill="#a855f7" />
-                  <text x="36" y="11.5" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
-                    Sim ₹{simulatedSpot?.toFixed(0)}
-                  </text>
-                </g>
-              </g>
-            )}
 
-            {/* Target Date (T+N) Line (Dashed Amber Glow) */}
-            {showTargetDate && targetLine && (
+            {/* Payoff Curves inside clipped viewport */}
+            <g clipPath="url(#chartPlotClip)">
+              {/* Target Date (T+N) Line (Dashed Amber Glow) */}
+              {showTargetDate && targetLine && (
+                <path
+                  d={targetLine}
+                  fill="none"
+                  stroke="#f59e0b"
+                  strokeWidth="2.5"
+                  strokeDasharray="7 4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+
+              {/* Main Expiry Payoff Curve (Solid Cyan) */}
               <path
-                d={targetLine}
+                d={expiryLine}
                 fill="none"
-                stroke="#f59e0b"
-                strokeWidth="2.5"
-                strokeDasharray="7 4"
+                stroke="#06b6d4"
+                strokeWidth="3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-            )}
-
-            {/* Main Expiry Payoff Curve (Solid Cyan) */}
-            <path
-              d={expiryLine}
-              fill="none"
-              stroke="#06b6d4"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            </g>
 
             {/* Interactive Mouse Hover Crosshair with Sensibull-style Dual Snapping Dots */}
             {hoverData && (
@@ -1033,47 +1016,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
         </div>
       )}
 
-      {/* 5. What-If Spot Price Simulation Slider & Quick Buttons */}
-      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-2.5 flex flex-wrap items-center justify-between gap-2.5 text-xs">
-        <div className="flex items-center gap-2">
-          <Sliders className="w-3.5 h-3.5 text-indigo-400" />
-          <span className="font-semibold text-slate-300">Simulate Spot Move:</span>
-          <span className="font-mono font-bold text-indigo-300">
-            ₹{activeSpot.toLocaleString('en-IN')}
-          </span>
-          {spotPrice > 0 && (
-            <span
-              className={`text-[11px] font-mono ${
-                activeSpot >= spotPrice ? 'text-emerald-400' : 'text-rose-400'
-              }`}
-            >
-              ({activeSpot >= spotPrice ? '+' : ''}
-              {(((activeSpot - spotPrice) / spotPrice) * 100).toFixed(1)}%)
-            </span>
-          )}
-        </div>
 
-        {/* Quick Simulation Buttons */}
-        <div className="flex items-center gap-1.5">
-          {[-5, -2, 0, 2, 5].map((pct) => {
-            const target = spotPrice * (1 + pct / 100);
-            return (
-              <button
-                key={pct}
-                type="button"
-                onClick={() => setSimulatedSpot(pct === 0 ? null : Math.round(target))}
-                className={`text-[10px] font-mono px-2 py-0.5 rounded border transition ${
-                  (pct === 0 && simulatedSpot === null) || simulatedSpot === Math.round(target)
-                    ? 'bg-indigo-600 text-white border-indigo-500 font-bold'
-                    : 'bg-[#1e2124] text-slate-400 border-[#2d3239] hover:text-slate-200'
-                }`}
-              >
-                {pct === 0 ? 'Live Spot' : `${pct > 0 ? '+' : ''}${pct}%`}
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 };

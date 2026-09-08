@@ -25,10 +25,9 @@ export const SummaryMetrics: React.FC<SummaryMetricsProps> = ({ payoff }) => {
     : [];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
       {/* Max Profit */}
-      <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group hover:border-emerald-500/40 transition">
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-emerald-400 opacity-80" />
+      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3 flex flex-col justify-between hover:border-[#3c434d] transition">
         <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
           <span className="font-medium">Max Profit</span>
           <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
@@ -39,8 +38,7 @@ export const SummaryMetrics: React.FC<SummaryMetricsProps> = ({ payoff }) => {
       </div>
 
       {/* Max Loss */}
-      <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group hover:border-rose-500/40 transition">
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-rose-500 to-rose-400 opacity-80" />
+      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3 flex flex-col justify-between hover:border-[#3c434d] transition">
         <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
           <span className="font-medium">Max Loss</span>
           <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" />
@@ -51,11 +49,10 @@ export const SummaryMetrics: React.FC<SummaryMetricsProps> = ({ payoff }) => {
       </div>
 
       {/* Risk : Reward */}
-      <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group hover:border-indigo-500/40 transition">
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-indigo-400 opacity-80" />
+      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3 flex flex-col justify-between hover:border-[#3c434d] transition">
         <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
           <span className="font-medium">Risk : Reward</span>
-          <Scale className="w-3.5 h-3.5 text-indigo-400" />
+          <Scale className="w-3.5 h-3.5 text-slate-400" />
         </div>
         <div className="text-base font-bold font-mono text-slate-100">
           {payoff.risk_reward || '—'}
@@ -63,13 +60,12 @@ export const SummaryMetrics: React.FC<SummaryMetricsProps> = ({ payoff }) => {
       </div>
 
       {/* Probability of Profit (POP) */}
-      <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group hover:border-amber-500/40 transition">
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-amber-400 opacity-80" />
+      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3 flex flex-col justify-between hover:border-[#3c434d] transition">
         <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
           <span className="font-medium">Prob. of Profit</span>
-          <Percent className="w-3.5 h-3.5 text-amber-400" />
+          <Percent className="w-3.5 h-3.5 text-slate-400" />
         </div>
-        <div className="text-base font-bold font-mono text-amber-300">
+        <div className="text-base font-bold font-mono text-slate-100">
           {payoff.pop > 0
             ? `${(payoff.pop <= 1 ? payoff.pop * 100 : payoff.pop).toFixed(1)}%`
             : '—'}
@@ -77,18 +73,7 @@ export const SummaryMetrics: React.FC<SummaryMetricsProps> = ({ payoff }) => {
       </div>
 
       {/* Net Premium */}
-      <div
-        className={`bg-[#1e2124] border border-[#2d3239] rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group transition ${
-          isNetCredit ? 'hover:border-emerald-500/40' : 'hover:border-rose-500/40'
-        }`}
-      >
-        <div
-          className={`absolute top-0 left-0 right-0 h-0.5 opacity-80 bg-gradient-to-r ${
-            isNetCredit
-              ? 'from-emerald-500 to-emerald-400'
-              : 'from-rose-500 to-rose-400'
-          }`}
-        />
+      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3 flex flex-col justify-between hover:border-[#3c434d] transition">
         <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
           <span className="font-medium">Net Premium</span>
           <Wallet className={`w-3.5 h-3.5 ${isNetCredit ? 'text-emerald-400' : 'text-rose-400'}`} />
@@ -103,11 +88,10 @@ export const SummaryMetrics: React.FC<SummaryMetricsProps> = ({ payoff }) => {
       </div>
 
       {/* Break-Evens */}
-      <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group hover:border-violet-500/40 transition">
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 to-violet-400 opacity-80" />
+      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3 flex flex-col justify-between hover:border-[#3c434d] transition">
         <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
           <span className="font-medium">Break-Even(s)</span>
-          <ShieldAlert className="w-3.5 h-3.5 text-violet-400" />
+          <ShieldAlert className="w-3.5 h-3.5 text-slate-400" />
         </div>
         <div className="text-xs font-bold font-mono text-slate-200 truncate">
           {breakEvens.length > 0

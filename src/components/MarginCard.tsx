@@ -27,7 +27,7 @@ export const MarginCard: React.FC<MarginCardProps> = ({ margin, isLoading }) => 
             Margin & Capital Requirements
           </h3>
         </div>
-        <div>
+        {/* <div>
           {isLoading ? (
             <span className="text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
               <Clock className="w-3 h-3 animate-spin" /> Calculating...
@@ -45,7 +45,7 @@ export const MarginCard: React.FC<MarginCardProps> = ({ margin, isLoading }) => 
               <Clock className="w-3 h-3" /> Awaiting Analysis
             </span>
           )}
-        </div>
+        </div> */}
       </div>
 
       {/* Error / RMS Message / Status Notice */}

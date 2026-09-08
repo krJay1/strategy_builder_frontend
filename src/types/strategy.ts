@@ -94,13 +94,36 @@ export interface PortfolioGreeks {
 }
 
 export interface PayoffPoint {
-  spot: number;
-  pnl: number;
+  spot?: number;
+  pnl?: number;
+  at?: number;
+  payoff?: number;
 }
 
 export interface BreakEven {
   spot: number;
   pnl?: number;
+}
+
+export interface PayoffRange {
+  x_min: number;
+  x_max: number;
+}
+
+export interface TargetPriceDefaults {
+  min: number;
+  max: number;
+  default: number;
+  step: number;
+  closest_future_expiry?: string;
+}
+
+export interface TargetDateTimeDefaults {
+  min?: string;
+  max?: string;
+  default?: string;
+  timestamps?: string[];
+  time_intervals?: string[];
 }
 
 export interface PayoffResult {
@@ -109,6 +132,8 @@ export interface PayoffResult {
   total_credit: number;
   payoff_at_expiry: PayoffPoint[];
   payoff_at_target: PayoffPoint[];
+  payoffs_at_expiry?: PayoffPoint[];
+  payoffs_at_target?: PayoffPoint[];
   break_evens: (number | BreakEven)[];
   breakevens_at_target?: (number | BreakEven)[];
   projected_payoff?: number;
@@ -125,13 +150,20 @@ export interface PayoffResult {
     to: number;
     step: number;
   };
+  payoff_range?: PayoffRange;
+  target_price_defaults?: TargetPriceDefaults;
+  target_datetime?: string;
+  target_datetime_defaults?: TargetDateTimeDefaults;
 }
 
 export interface MarginResult {
   is_valid?: boolean;
   required: number;
+  final_margin?: number;
+  hedge_benefit?: number;
   available_margin?: number;
   margin_shortfall?: number;
+  strategy_type?: string;
   error_message?: string;
   raw?: any;
   error?: string;
