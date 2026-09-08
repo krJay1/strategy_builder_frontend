@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { PayoffResult, PortfolioGreeks, LiveLegUpdate } from '../types/strategy';
+import { useTheme } from '../context/ThemeContext';
 import {
   LineChart as ChartIcon,
   ShieldCheck,
@@ -29,6 +30,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
   totalValue,
   legs: _legs,
 }) => {
+  const { isDark } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // View Mode: 'chart' (Graph) or 'table' (Sensibull-style Payoff Table)
@@ -149,11 +151,11 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
 
   if (!payoff?.payoff_at_expiry || payoff.payoff_at_expiry.length === 0 || points.length === 0) {
     return (
-      <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-8 h-80 flex flex-col items-center justify-center text-slate-500">
-        <ChartIcon className="w-10 h-10 mb-3 opacity-30 text-indigo-400" />
-        <p className="text-sm font-medium text-slate-400">No Payoff Data Available</p>
+      <div className="bg-white dark:bg-[#151921] border border-slate-200 dark:border-[#232a35] rounded-xl p-8 h-80 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 shadow-sm">
+        <ChartIcon className="w-10 h-10 mb-3 opacity-30 text-indigo-500 dark:text-indigo-400" />
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-400">No Payoff Data Available</p>
         <p className="text-xs text-slate-500 mt-1">
-          Click <span className="text-indigo-400 font-semibold">"Analyze & Subscribe"</span> to calculate payoff curves.
+          Click <span className="text-indigo-600 dark:text-indigo-400 font-semibold">"Analyze & Subscribe"</span> to calculate payoff curves.
         </p>
       </div>
     );
@@ -213,6 +215,18 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
     const pnlVal = Math.round(minPnL + i * yStep);
     yTicks.push({ pnl: pnlVal, y: getY(pnlVal) });
   }
+  // ₹
+  const formatYTickLabel = (pnl: number) => {
+    if (Math.abs(pnl) < 1) return '0';
+    const prefix = pnl > 0 ? '+' : '-';
+    const absVal = Math.abs(pnl);
+    if (absVal >= 1000) {
+      const k = absVal / 1000;
+      const formatted = k % 1 === 0 ? k.toFixed(0) : k.toFixed(1);
+      return `${prefix}${formatted}k`;
+    }
+    return `${prefix}${Math.round(absVal)}`;
+  };
 
   // Mouse Move Handler
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -279,18 +293,18 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
   };
 
   return (
-    <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-4 shadow-sm relative overflow-hidden space-y-3.5">
+    <div className="bg-white dark:bg-[#151921] border border-slate-200 dark:border-[#232a35] rounded-xl p-4 shadow-sm relative overflow-hidden space-y-3.5">
       {/* 1. Top Control Bar: View Switcher (Chart vs Table), SD Toggle, and Layers */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-[#2d3239]">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-slate-200 dark:border-[#232a35]">
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Sensibull-style View Mode Switcher */}
-          <div className="flex items-center bg-[#141619] p-0.5 rounded-lg border border-[#282d34]">
+          <div className="flex items-center bg-slate-100 dark:bg-[#0d1117] p-0.5 rounded-lg border border-slate-200 dark:border-[#232a35]">
             <button
               onClick={() => setViewMode('chart')}
-              className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md font-semibold transition ${
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-semibold transition-all active:scale-95 ${
                 viewMode === 'chart'
                   ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-[#1a2029]'
               }`}
             >
               <BarChart2 className="w-3.5 h-3.5" />
@@ -298,10 +312,10 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md font-semibold transition ${
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-semibold transition-all active:scale-95 ${
                 viewMode === 'table'
                   ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-[#1a2029]'
               }`}
             >
               <TableIcon className="w-3.5 h-3.5" />
@@ -311,23 +325,23 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
 
           {/* Unrealized P&L & Value (Live Metrics) */}
           {livePnL !== undefined && (
-            <div className="flex items-center gap-3 font-mono text-xs bg-[#141619] px-3 py-1 rounded-lg border border-[#282d34]">
+            <div className="flex items-center gap-3 font-mono text-xs bg-slate-50 dark:bg-[#0d1117] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#232a35]">
               <div className="flex items-center gap-1.5">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                <span className="text-slate-400 font-sans text-[11px]">Unrealized P&L:</span>
-                <span className={`font-bold ${livePnL >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <span className="text-slate-500 dark:text-slate-400 font-sans text-[11px] font-medium">Unrealized P&L:</span>
+                <span className={`font-bold font-mono ${livePnL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                   {livePnL >= 0
                     ? `+₹${livePnL.toLocaleString('en-IN', { maximumFractionDigits: 1 })}`
                     : `-₹${Math.abs(livePnL).toLocaleString('en-IN', { maximumFractionDigits: 1 })}`}
                 </span>
               </div>
               {totalValue !== undefined && (
-                <div className="flex items-center gap-1.5 pl-3 border-l border-[#282d34]">
-                  <span className="text-slate-400 font-sans text-[11px]">Value:</span>
-                  <span className="font-bold text-cyan-300">
+                <div className="flex items-center gap-1.5 pl-3 border-l border-slate-200 dark:border-[#232a35]">
+                  <span className="text-slate-500 dark:text-slate-400 font-sans text-[11px] font-medium">Value:</span>
+                  <span className="font-bold font-mono text-cyan-600 dark:text-cyan-300">
                     ₹{totalValue.toLocaleString('en-IN', { maximumFractionDigits: 1 })}
                   </span>
                 </div>
@@ -338,29 +352,37 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
 
         {/* Layer Toggles & Sensibull SD Overlay Control */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <div className="flex items-center gap-1.5 bg-[#141619] px-2 py-0.5 rounded-lg border border-[#282d34]">
-            <Layers className="w-3 h-3 text-slate-400" />
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0d1117] p-0.5 rounded-lg border border-slate-200 dark:border-[#232a35]">
+            <span className="pl-1.5 pr-0.5 text-slate-500 dark:text-slate-400">
+              <Layers className="w-3.5 h-3.5" />
+            </span>
             <button
               onClick={() => setShowSD(!showSD)}
-              className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-1 transition ${
-                showSD ? 'bg-indigo-600/30 text-indigo-300 font-bold' : 'text-slate-500'
+              className={`text-[11px] px-2 py-1 rounded-md font-semibold flex items-center gap-1 transition-all active:scale-95 ${
+                showSD
+                  ? 'bg-indigo-600/20 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-500/30'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-[#1a2029]'
               }`}
             >
-              <Sigma className="w-2.5 h-2.5" />
+              <Sigma className="w-3 h-3" />
               1 SD Band
             </button>
             <button
               onClick={() => setShowZones(!showZones)}
-              className={`text-[10px] px-1.5 py-0.5 rounded font-medium transition ${
-                showZones ? 'bg-emerald-500/20 text-emerald-300 font-bold' : 'text-slate-500'
+              className={`text-[11px] px-2 py-1 rounded-md font-semibold transition-all active:scale-95 ${
+                showZones
+                  ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-[#1a2029]'
               }`}
             >
               Zones
             </button>
             <button
               onClick={() => setShowBreakEvens(!showBreakEvens)}
-              className={`text-[10px] px-1.5 py-0.5 rounded font-medium transition ${
-                showBreakEvens ? 'bg-slate-200 text-slate-900 font-bold' : 'text-slate-500'
+              className={`text-[11px] px-2 py-1 rounded-md font-semibold transition-all active:scale-95 ${
+                showBreakEvens
+                  ? 'bg-slate-300 dark:bg-slate-200 text-slate-900 font-bold shadow-2xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-[#1a2029]'
               }`}
             >
               BE
@@ -368,8 +390,10 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
             {targetLine && (
               <button
                 onClick={() => setShowTargetDate(!showTargetDate)}
-                className={`text-[10px] px-1.5 py-0.5 rounded font-medium transition ${
-                  showTargetDate ? 'bg-amber-400/30 text-amber-300 font-bold' : 'text-slate-500'
+                className={`text-[11px] px-2 py-1 rounded-md font-semibold transition-all active:scale-95 ${
+                  showTargetDate
+                    ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold border border-amber-500/30'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-[#1a2029]'
                 }`}
               >
                 Target (T+N)
@@ -380,25 +404,24 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
       </div>
 
       {/* 2. Self-Explaining Strategy Narrative Callout */}
-      <div className="bg-[#141619] border border-[#282d34] rounded-lg px-3 py-1.5 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2 text-slate-300">
-          <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+      <div className="bg-slate-50 dark:bg-[#0d1117] border border-slate-200 dark:border-[#232a35] rounded-lg px-3 py-1.5 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+          <Info className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
           <span>{getNarrative()}</span>
         </div>
         {sd1Low > 0 && sd1High > 0 && (
-          <div className="hidden md:flex items-center gap-1 text-[11px] font-mono text-slate-400">
+          <div className="hidden md:flex items-center gap-1 text-[11px] font-mono text-slate-500 dark:text-slate-400">
             <span>Expected 1 SD Range:</span>
-            <span className="text-white font-bold">₹{sd1Low.toLocaleString('en-IN')} – ₹{sd1High.toLocaleString('en-IN')}</span>
+            <span className="text-slate-900 dark:text-white font-bold">₹{sd1Low.toLocaleString('en-IN')} – ₹{sd1High.toLocaleString('en-IN')}</span>
           </div>
         )}
       </div>
-
 
       {/* 3. Main View: Payoff Chart OR Payoff Table */}
       {viewMode === 'chart' ? (
         <div
           ref={containerRef}
-          className="relative w-full rounded-lg overflow-hidden border border-[#2d3239] bg-[#1e2124] shadow-inner"
+          className="relative w-full rounded-lg overflow-hidden border border-slate-200 dark:border-[#232a35] bg-slate-50/50 dark:bg-[#0d1117] shadow-inner"
         >
           <svg
             viewBox={`0 0 ${width} ${height}`}
@@ -409,14 +432,14 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
             <defs>
               {/* Profit Green Gradient */}
               <linearGradient id="profitFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#10b981" stopOpacity="0.45" />
+                <stop offset="0%" stopColor="#10b981" stopOpacity={isDark ? "0.45" : "0.35"} />
                 <stop offset="100%" stopColor="#10b981" stopOpacity="0.05" />
               </linearGradient>
 
               {/* Loss Red Gradient */}
               <linearGradient id="lossFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#ef4444" stopOpacity="0.05" />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#ef4444" stopOpacity={isDark ? "0.45" : "0.35"} />
               </linearGradient>
 
               {/* Clip path for Profit Zone */}
@@ -444,7 +467,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                   width={Math.min(width - padding.right, sd1HighX) - Math.max(padding.left, sd1LowX)}
                   height={plotHeight}
                   fill="#6366f1"
-                  fillOpacity="0.06"
+                  fillOpacity={isDark ? "0.06" : "0.05"}
                 />
                 <line
                   x1={sd1LowX}
@@ -454,7 +477,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                   stroke="#6366f1"
                   strokeDasharray="2 4"
                   strokeWidth="1"
-                  opacity="0.5"
+                  opacity={isDark ? "0.5" : "0.4"}
                 />
                 <line
                   x1={sd1HighX}
@@ -464,7 +487,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                   stroke="#6366f1"
                   strokeDasharray="2 4"
                   strokeWidth="1"
-                  opacity="0.5"
+                  opacity={isDark ? "0.5" : "0.4"}
                 />
                 {/* 2 SD outer reference lines */}
                 {sd2LowX !== null && (
@@ -476,7 +499,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                     stroke="#6366f1"
                     strokeDasharray="1 5"
                     strokeWidth="1"
-                    opacity="0.3"
+                    opacity={isDark ? "0.3" : "0.2"}
                   />
                 )}
                 {sd2HighX !== null && (
@@ -488,14 +511,14 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                     stroke="#6366f1"
                     strokeDasharray="1 5"
                     strokeWidth="1"
-                    opacity="0.3"
+                    opacity={isDark ? "0.3" : "0.2"}
                   />
                 )}
                 <text
                   x={(sd1LowX + sd1HighX) / 2}
                   y={padding.top + 14}
-                  fill="#818cf8"
-                  fillOpacity="0.4"
+                  fill={isDark ? "#818cf8" : "#4f46e5"}
+                  fillOpacity={isDark ? "0.6" : "0.7"}
                   fontSize="10"
                   fontWeight="bold"
                   textAnchor="middle"
@@ -514,8 +537,8 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                   <text
                     x={padding.left + 20}
                     y={padding.top + 28}
-                    fill="#10b981"
-                    fillOpacity="0.18"
+                    fill={isDark ? "#10b981" : "#059669"}
+                    fillOpacity={isDark ? "0.18" : "0.15"}
                     fontSize="13"
                     fontWeight="bold"
                     fontFamily="sans-serif"
@@ -528,8 +551,8 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                   <text
                     x={padding.left + 20}
                     y={height - padding.bottom - 15}
-                    fill="#ef4444"
-                    fillOpacity="0.18"
+                    fill={isDark ? "#ef4444" : "#dc2626"}
+                    fillOpacity={isDark ? "0.18" : "0.15"}
                     fontSize="13"
                     fontWeight="bold"
                     fontFamily="sans-serif"
@@ -549,19 +572,19 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                   y1={yt.y}
                   x2={width - padding.right}
                   y2={yt.y}
-                  stroke="#2e333b"
+                  stroke={isDark ? "#232a35" : "#e2e8f0"}
                   strokeDasharray="3 3"
                   strokeWidth="1"
                 />
                 <text
                   x={padding.left - 10}
                   y={yt.y + 4}
-                  fill="#8590a2"
+                  fill={isDark ? "#8590a2" : "#64748b"}
                   fontSize="10"
                   textAnchor="end"
                   fontFamily="monospace"
                 >
-                  {yt.pnl >= 0 ? '+' : ''}₹{(yt.pnl / 1000).toFixed(0)}k
+                  {formatYTickLabel(yt.pnl)}
                 </text>
               </g>
             ))}
@@ -573,14 +596,14 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                   y1={padding.top}
                   x2={xt.x}
                   y2={height - padding.bottom}
-                  stroke="#2e333b"
+                  stroke={isDark ? "#232a35" : "#e2e8f0"}
                   strokeDasharray="3 3"
                   strokeWidth="1"
                 />
                 <text
                   x={xt.x}
                   y={height - padding.bottom + 18}
-                  fill="#8590a2"
+                  fill={isDark ? "#8590a2" : "#64748b"}
                   fontSize="10"
                   textAnchor="middle"
                   fontFamily="monospace"
@@ -595,7 +618,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
               transform="rotate(-90)"
               x={-(padding.top + plotHeight / 2)}
               y={18}
-              fill="#8590a2"
+              fill={isDark ? "#8590a2" : "#64748b"}
               fontSize="9"
               fontWeight="bold"
               textAnchor="middle"
@@ -608,7 +631,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
             <text
               x={padding.left + plotWidth / 2}
               y={height - 6}
-              fill="#8590a2"
+              fill={isDark ? "#8590a2" : "#64748b"}
               fontSize="9"
               fontWeight="bold"
               textAnchor="middle"
@@ -632,13 +655,13 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
               y1={zeroY}
               x2={width - padding.right}
               y2={zeroY}
-              stroke="#4e5561"
+              stroke={isDark ? "#475569" : "#94a3b8"}
               strokeWidth="1.5"
             />
             <text
               x={width - padding.right + 6}
               y={zeroY + 3}
-              fill="#a1abb9"
+              fill={isDark ? "#a1abb9" : "#64748b"}
               fontSize="10"
               fontWeight="bold"
               fontFamily="monospace"
@@ -646,7 +669,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
               ₹0
             </text>
 
-            {/* Break-Even Vertical Marker Lines & Callout Badges (Distinct Slate-White with Emerald Diamond Marker) */}
+            {/* Break-Even Vertical Marker Lines & Callout Badges */}
             {showBreakEvens &&
               breakEvens.map((be, i) => {
                 const beX = getX(be);
@@ -658,21 +681,21 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                       y1={padding.top}
                       x2={beX}
                       y2={height - padding.bottom}
-                      stroke="#f8fafc"
+                      stroke={isDark ? "#f8fafc" : "#1e293b"}
                       strokeDasharray="2 3"
                       strokeWidth="1.5"
-                      opacity="0.85"
+                      opacity={isDark ? "0.85" : "0.75"}
                     />
                     {/* Diamond Marker at Zero-Line Intersection */}
                     <polygon
                       points={`${beX},${zeroY - 5} ${beX + 5},${zeroY} ${beX},${zeroY + 5} ${beX - 5},${zeroY}`}
                       fill="#10b981"
-                      stroke="#ffffff"
+                      stroke={isDark ? "#ffffff" : "#0f172a"}
                       strokeWidth="1.5"
                     />
                     {/* Crisp Top Callout Pill */}
                     <g transform={`translate(${beX - 30}, ${padding.top - 20})`}>
-                      <rect width="60" height="17" rx="4" fill="#0f172a" stroke="#f8fafc" strokeWidth="1.5" />
+                      <rect width="60" height="17" rx="4" fill={isDark ? "#0f172a" : "#1e293b"} stroke={isDark ? "#f8fafc" : "#334155"} strokeWidth="1.5" />
                       <text x="30" y="12" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
                         BE ₹{be.toFixed(0)}
                       </text>
@@ -710,7 +733,6 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
               </g>
             )}
 
-
             {/* Payoff Curves inside clipped viewport */}
             <g clipPath="url(#chartPlotClip)">
               {/* Target Date (T+N) Line (Dashed Amber Glow) */}
@@ -730,7 +752,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
               <path
                 d={expiryLine}
                 fill="none"
-                stroke="#06b6d4"
+                stroke={isDark ? "#06b6d4" : "#0284c7"}
                 strokeWidth="3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -746,7 +768,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                   y1={padding.top}
                   x2={hoverData.x}
                   y2={height - padding.bottom}
-                  stroke="#a855f7"
+                  stroke={isDark ? "#a855f7" : "#9333ea"}
                   strokeDasharray="2 2"
                   strokeWidth="1"
                 />
@@ -756,7 +778,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                   y1={hoverData.y}
                   x2={width - padding.right}
                   y2={hoverData.y}
-                  stroke="#a855f7"
+                  stroke={isDark ? "#a855f7" : "#9333ea"}
                   strokeDasharray="2 2"
                   strokeWidth="1"
                 />
@@ -766,7 +788,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                   cx={hoverData.x}
                   cy={hoverData.y}
                   r="5"
-                  fill="#06b6d4"
+                  fill={isDark ? "#06b6d4" : "#0284c7"}
                   stroke="#ffffff"
                   strokeWidth="2"
                 />
@@ -789,7 +811,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
           {/* 4. Self-Explaining Interactive Tooltip HUD */}
           {hoverData && (
             <div
-              className="absolute z-20 pointer-events-none bg-[#141619]/95 border border-[#3b414b] p-3 rounded-lg shadow-2xl text-xs backdrop-blur-md transition-all duration-75"
+              className="absolute z-20 pointer-events-none bg-white/95 dark:bg-[#0d1117]/95 border border-slate-300 dark:border-[#333d4d] p-3 rounded-lg shadow-2xl text-xs backdrop-blur-md transition-all duration-75 text-slate-800 dark:text-slate-200"
               style={{
                 left: `${Math.min(
                   Math.max(12, (hoverData.x / width) * 100),
@@ -798,14 +820,14 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                 top: '14px',
               }}
             >
-              <div className="text-slate-300 font-mono text-[11px] border-b border-[#2d3239] pb-1.5 mb-2 flex items-center justify-between gap-4 font-bold">
+              <div className="text-slate-700 dark:text-slate-300 font-mono text-[11px] border-b border-slate-200 dark:border-[#232a35] pb-1.5 mb-2 flex items-center justify-between gap-4 font-bold">
                 <span>Target Spot:</span>
-                <span className="text-white font-mono flex items-center gap-1.5">
+                <span className="text-slate-900 dark:text-white font-mono flex items-center gap-1.5">
                   ₹{hoverData.spot.toLocaleString('en-IN')}
                   {spotPrice > 0 && (
                     <span
                       className={`text-[10px] font-normal ${
-                        hoverData.spot >= spotPrice ? 'text-emerald-400' : 'text-rose-400'
+                        hoverData.spot >= spotPrice ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                       }`}
                     >
                       ({hoverData.spot >= spotPrice ? '+' : ''}
@@ -818,13 +840,13 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
               <div className="space-y-1.5 font-mono text-xs">
                 {/* Expiry P&L */}
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-cyan-400 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                  <span className="text-sky-600 dark:text-cyan-400 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500 dark:bg-cyan-400"></span>
                     Expiry P&L:
                   </span>
                   <span
                     className={`font-bold ${
-                      hoverData.expiryPnL >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                      hoverData.expiryPnL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                     }`}
                   >
                     {hoverData.expiryPnL >= 0 ? '+₹' : '-₹'}
@@ -835,13 +857,13 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                 {/* Target Date P&L */}
                 {showTargetDate && hoverData.targetPnL !== undefined && (
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-amber-400 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400"></span>
                       Target (T+N) P&L:
                     </span>
                     <span
                       className={`font-bold ${
-                        hoverData.targetPnL >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                        hoverData.targetPnL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                       }`}
                     >
                       {hoverData.targetPnL >= 0 ? '+₹' : '-₹'}
@@ -852,13 +874,13 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
 
                 {/* Theta / Time Value Gap */}
                 {showTargetDate && hoverData.targetPnL !== undefined && (
-                  <div className="flex items-center justify-between gap-4 pt-1 border-t border-[#262a31] text-[10px] text-slate-400">
+                  <div className="flex items-center justify-between gap-4 pt-1 border-t border-slate-200 dark:border-[#232a35] text-[10px] text-slate-500 dark:text-slate-400">
                     <span>Time Value / Theta Gap:</span>
                     <span
                       className={`font-bold font-mono ${
                         hoverData.targetPnL - hoverData.expiryPnL >= 0
-                          ? 'text-emerald-300'
-                          : 'text-rose-300'
+                          ? 'text-emerald-600 dark:text-emerald-300'
+                          : 'text-rose-600 dark:text-rose-300'
                       }`}
                     >
                       {hoverData.targetPnL - hoverData.expiryPnL >= 0 ? '+₹' : '-₹'}
@@ -869,21 +891,21 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
               </div>
 
               {/* Status Outcome Badge */}
-              <div className="mt-2 pt-1.5 border-t border-[#262a31] text-[10px] font-sans flex items-center gap-1">
+              <div className="mt-2 pt-1.5 border-t border-slate-200 dark:border-[#232a35] text-[10px] font-sans flex items-center gap-1">
                 {hoverData.expiryPnL > 0 ? (
                   <>
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                    <span className="text-emerald-300">In Profit: strategy gains if expired here.</span>
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="text-emerald-700 dark:text-emerald-300">In Profit: strategy gains if expired here.</span>
                   </>
                 ) : hoverData.expiryPnL < 0 ? (
                   <>
-                    <AlertTriangle className="w-3 h-3 text-rose-400 shrink-0" />
-                    <span className="text-rose-300">In Loss: strategy loses if expired here.</span>
+                    <AlertTriangle className="w-3 h-3 text-rose-600 dark:text-rose-400 shrink-0" />
+                    <span className="text-rose-700 dark:text-rose-300">In Loss: strategy loses if expired here.</span>
                   </>
                 ) : (
                   <>
-                    <ShieldCheck className="w-3 h-3 text-amber-400 shrink-0" />
-                    <span className="text-amber-300">Break-Even crossover.</span>
+                    <ShieldCheck className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span className="text-amber-700 dark:text-amber-300">Break-Even crossover.</span>
                   </>
                 )}
               </div>
@@ -891,57 +913,57 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
           )}
 
           {/* Dedicated Visual Chart Legend */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 bg-[#141619] border-t border-[#282d34] text-[11px]">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 bg-slate-50 dark:bg-[#0d1117] border-t border-slate-200 dark:border-[#232a35] text-[11px]">
             <div className="flex flex-wrap items-center gap-4">
               {/* Expiry Curve */}
               <div className="flex items-center gap-1.5">
-                <span className="w-4 h-[3px] bg-cyan-400 rounded-full inline-block"></span>
-                <span className="font-sans font-semibold text-slate-200">Expiry Payoff</span>
+                <span className="w-4 h-[3px] bg-sky-500 dark:bg-cyan-400 rounded-full inline-block"></span>
+                <span className="font-sans font-semibold text-slate-700 dark:text-slate-200">Expiry Payoff</span>
               </div>
               {/* Target Curve */}
               {targetLine && (
                 <div className="flex items-center gap-1.5">
-                  <span className="w-4 h-0 border-t-2 border-dashed border-amber-400 inline-block"></span>
-                  <span className="font-sans font-semibold text-amber-300">Target Date (T+N)</span>
+                  <span className="w-4 h-0 border-t-2 border-dashed border-amber-500 dark:border-amber-400 inline-block"></span>
+                  <span className="font-sans font-semibold text-amber-600 dark:text-amber-300">Target Date (T+N)</span>
                 </div>
               )}
               {/* Break Even */}
               {breakEvens.length > 0 && (
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rotate-45 bg-emerald-400 border border-white inline-block"></span>
-                  <span className="font-sans font-semibold text-slate-200">Break-Even (BE)</span>
+                  <span className="w-2 h-2 rotate-45 bg-emerald-500 dark:bg-emerald-400 border border-slate-700 dark:border-white inline-block"></span>
+                  <span className="font-sans font-semibold text-slate-700 dark:text-slate-200">Break-Even (BE)</span>
                 </div>
               )}
               {/* Live Spot */}
               {spotPrice > 0 && (
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-indigo-400 inline-block"></span>
-                  <span className="font-sans font-semibold text-indigo-300">Live Spot</span>
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 inline-block"></span>
+                  <span className="font-sans font-semibold text-indigo-600 dark:text-indigo-300">Live Spot</span>
                 </div>
               )}
             </div>
 
             {/* Hint */}
-            <span className="hidden sm:inline text-[10px] text-slate-400 font-sans">
+            <span className="hidden sm:inline text-[10px] text-slate-500 dark:text-slate-400 font-sans">
               Hover over chart to inspect P&L at any price
             </span>
           </div>
         </div>
       ) : (
         /* Sensibull-style Payoff Table View */
-        <div className="rounded-lg border border-[#2d3239] bg-[#1e2124] overflow-hidden max-h-[360px] overflow-y-auto">
+        <div className="rounded-lg border border-slate-200 dark:border-[#232a35] bg-white dark:bg-[#0d1117] overflow-hidden max-h-[360px] overflow-y-auto">
           <table className="w-full text-left text-xs font-mono">
-            <thead className="sticky top-0 bg-[#141619] border-b border-[#2d3239] text-[10px] uppercase text-slate-400 tracking-wider">
+            <thead className="sticky top-0 bg-slate-100 dark:bg-[#151921] border-b border-slate-200 dark:border-[#232a35] text-[10px] uppercase text-slate-500 dark:text-slate-400 tracking-wider">
               <tr>
                 <th className="py-2.5 px-3">Spot Target</th>
                 <th className="py-2.5 px-3">% Move</th>
-                <th className="py-2.5 px-3 text-amber-400">Target (T+N) P&L</th>
-                <th className="py-2.5 px-3 text-cyan-300">Expiry P&L</th>
+                <th className="py-2.5 px-3 text-amber-600 dark:text-amber-400">Target (T+N) P&L</th>
+                <th className="py-2.5 px-3 text-sky-600 dark:text-cyan-300">Expiry P&L</th>
                 <th className="py-2.5 px-3">Probability Zone</th>
                 <th className="py-2.5 px-3 text-right">Outcome</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#262a31]">
+            <tbody className="divide-y divide-slate-100 dark:divide-[#232a35]">
               {points
                 .filter((_, idx) => idx % 3 === 0 || idx === points.length - 1)
                 .map((p, i) => {
@@ -952,17 +974,17 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                   return (
                     <tr
                       key={i}
-                      className={`hover:bg-[#25282e] transition ${
-                        isCurrent ? 'bg-indigo-600/10 font-bold border-l-2 border-indigo-500' : ''
+                      className={`hover:bg-slate-50 dark:hover:bg-[#151921] transition ${
+                        isCurrent ? 'bg-indigo-50 dark:bg-indigo-600/10 font-bold border-l-2 border-indigo-500' : ''
                       }`}
                     >
-                      <td className="py-2 px-3 text-slate-100 flex items-center gap-1.5">
-                        {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>}
+                      <td className="py-2 px-3 text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                        {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400"></span>}
                         ₹{p.spot.toLocaleString('en-IN')}
                       </td>
                       <td
                         className={`py-2 px-3 ${
-                          pctMove > 0 ? 'text-emerald-400' : pctMove < 0 ? 'text-rose-400' : 'text-slate-400'
+                          pctMove > 0 ? 'text-emerald-600 dark:text-emerald-400' : pctMove < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'
                         }`}
                       >
                         {pctMove >= 0 ? '+' : ''}
@@ -970,7 +992,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                       </td>
                       <td
                         className={`py-2 px-3 font-semibold ${
-                          (p.targetPnL ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                          (p.targetPnL ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                         }`}
                       >
                         {p.targetPnL !== undefined ? (
@@ -984,7 +1006,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                       </td>
                       <td
                         className={`py-2 px-3 font-bold ${
-                          p.expiryPnL >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                          p.expiryPnL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                         }`}
                       >
                         {p.expiryPnL >= 0 ? '+₹' : '-₹'}
@@ -992,20 +1014,20 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
                       </td>
                       <td className="py-2 px-3 text-[10px]">
                         {in1SD ? (
-                          <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
+                          <span className="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/25">
                             Within 1 SD (68%)
                           </span>
                         ) : (
-                          <span className="text-slate-500">Outlier / 2 SD</span>
+                          <span className="text-slate-400 dark:text-slate-500">Outlier / 2 SD</span>
                         )}
                       </td>
                       <td className="py-2 px-3 text-right">
                         {p.expiryPnL > 0 ? (
-                          <span className="text-emerald-400 text-[10px] font-bold">PROFIT</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">PROFIT</span>
                         ) : p.expiryPnL < 0 ? (
-                          <span className="text-rose-400 text-[10px] font-bold">LOSS</span>
+                          <span className="text-rose-600 dark:text-rose-400 text-[10px] font-bold">LOSS</span>
                         ) : (
-                          <span className="text-amber-400 text-[10px] font-bold">BE</span>
+                          <span className="text-amber-600 dark:text-amber-400 text-[10px] font-bold">BE</span>
                         )}
                       </td>
                     </tr>
@@ -1015,8 +1037,6 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
           </table>
         </div>
       )}
-
-
     </div>
   );
 };

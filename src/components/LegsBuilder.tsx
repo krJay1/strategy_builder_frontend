@@ -77,14 +77,14 @@ const LegRow: React.FC<LegRowProps> = ({
           ? 'opacity-30 bg-indigo-950/40 border-2 border-dashed border-indigo-500/60 scale-[0.99]'
           : isDropTarget
           ? 'bg-indigo-500/15 border-t-2 border-indigo-500 shadow-md'
-          : 'hover:bg-[#25282e]/50'
+          : 'hover:bg-slate-50/80 dark:hover:bg-[#1c222b]/50'
       }`}
     >
       {/* Drag & Drop Handle */}
       <td className="py-2.5 w-6 pl-2 text-center">
         <div
-          className={`cursor-grab active:cursor-grabbing p-1 rounded hover:bg-[#2d3239] transition ${
-            disabled ? 'opacity-20 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-300'
+          className={`cursor-grab active:cursor-grabbing p-1 rounded hover:bg-slate-100 dark:hover:bg-[#232a35] transition ${
+            disabled ? 'opacity-20 cursor-not-allowed' : 'text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-300'
           }`}
           title="Drag and drop to rearrange order"
         >
@@ -93,7 +93,7 @@ const LegRow: React.FC<LegRowProps> = ({
       </td>
 
       {/* Index Number */}
-      <td className="py-2.5 text-slate-500 w-7 font-mono font-semibold text-xs">{index + 1}</td>
+      <td className="py-2.5 text-slate-400 dark:text-slate-500 w-7 font-mono font-semibold text-xs">{index + 1}</td>
 
       {/* Side Toggle Button (B / S) */}
       <td className="py-2.5 w-10">
@@ -103,10 +103,10 @@ const LegRow: React.FC<LegRowProps> = ({
             onUpdateLeg(index, 'side', isBuy ? 'SELL' : 'BUY')
           }
           title={isBuy ? 'Side: BUY (click to toggle SELL)' : 'Side: SELL (click to toggle BUY)'}
-          className={`text-xs font-bold w-6 h-6 rounded flex items-center justify-center transition border ${
+          className={`text-xs font-bold w-6 h-6 rounded-md flex items-center justify-center transition-all shadow-2xs border active:scale-90 ${
             isBuy
-              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
-              : 'bg-rose-500/15 text-rose-400 border-rose-500/30 hover:bg-rose-500/25'
+              ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/25'
+              : 'bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-500/30 hover:bg-rose-100 dark:hover:bg-rose-500/25'
           }`}
         >
           {isBuy ? 'B' : 'S'}
@@ -120,13 +120,13 @@ const LegRow: React.FC<LegRowProps> = ({
           onChange={(e) =>
             onUpdateLeg(index, 'exchange_segment', Number(e.target.value))
           }
-          className="bg-[#141619] border border-[#2d3239] rounded-md px-2 py-1 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+          className="bg-slate-50 dark:bg-[#0d1117] border border-slate-200 dark:border-[#232a35] hover:border-slate-300 dark:hover:border-[#353f4e] focus:border-indigo-500 rounded-lg px-2.5 py-1 text-slate-800 dark:text-slate-200 font-mono font-medium text-xs focus:outline-none cursor-pointer transition-all"
         >
-          <option value={2}>NSEFO (2)</option>
-          <option value={1}>NSECM (1)</option>
-          <option value={12}>BSEFO (12)</option>
-          <option value={11}>BSECM (11)</option>
-          <option value={51}>MCXFO (51)</option>
+          <option value={2} className="bg-white dark:bg-[#151921] text-slate-900 dark:text-slate-100">NSEFO (2)</option>
+          <option value={1} className="bg-white dark:bg-[#151921] text-slate-900 dark:text-slate-100">NSECM (1)</option>
+          <option value={12} className="bg-white dark:bg-[#151921] text-slate-900 dark:text-slate-100">BSEFO (12)</option>
+          <option value={11} className="bg-white dark:bg-[#151921] text-slate-900 dark:text-slate-100">BSECM (11)</option>
+          <option value={51} className="bg-white dark:bg-[#151921] text-slate-900 dark:text-slate-100">MCXFO (51)</option>
         </select>
       </td>
 
@@ -143,18 +143,18 @@ const LegRow: React.FC<LegRowProps> = ({
             }
           }}
           placeholder="e.g. 144396"
-          className="bg-[#141619] border border-[#2d3239] rounded-md px-2.5 py-1 text-slate-100 text-xs w-28 focus:outline-none focus:border-indigo-500 font-bold"
+          className="bg-slate-50 dark:bg-[#0d1117] border border-slate-200 dark:border-[#232a35] hover:border-slate-300 dark:hover:border-[#353f4e] focus:border-indigo-500 rounded-lg px-2.5 py-1 text-slate-900 dark:text-slate-100 font-mono font-bold text-xs w-28 focus:outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
         />
       </td>
 
       {/* Lots Stepper (Decrement / Input / Increment) */}
       <td className="py-2.5 w-24">
-        <div className="flex items-center bg-[#141619] border border-[#2d3239] rounded-md overflow-hidden w-20">
+        <div className="flex items-center bg-slate-50 dark:bg-[#0d1117] border border-slate-200 dark:border-[#232a35] hover:border-slate-300 dark:hover:border-[#353f4e] focus-within:border-indigo-500 rounded-lg overflow-hidden w-22 transition-all">
           <button
             type="button"
             disabled={disabled || currentLots <= 1}
             onClick={() => onUpdateLeg(index, 'lots', Math.max(1, currentLots - 1))}
-            className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
+            className="px-2 py-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-200/80 dark:hover:bg-[#1c222b] disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-90"
             title="Decrease Lot (-1)"
           >
             <Minus className="w-3 h-3" />
@@ -166,13 +166,13 @@ const LegRow: React.FC<LegRowProps> = ({
             onChange={(e) =>
               onUpdateLeg(index, 'lots', Math.max(1, Number(e.target.value)))
             }
-            className="bg-transparent text-center text-slate-100 text-xs w-full focus:outline-none font-bold py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="bg-transparent text-center text-slate-900 dark:text-slate-100 text-xs w-full focus:outline-none font-bold font-mono py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <button
             type="button"
             disabled={disabled}
             onClick={() => onUpdateLeg(index, 'lots', currentLots + 1)}
-            className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
+            className="px-2 py-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-200/80 dark:hover:bg-[#1c222b] disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-90"
             title="Increase Lot (+1)"
           >
             <Plus className="w-3 h-3" />
@@ -184,23 +184,23 @@ const LegRow: React.FC<LegRowProps> = ({
       <td className="py-2.5 w-36">
         {liveLtp !== undefined && liveLtp > 0 ? (
           <div className="flex items-center gap-1.5">
-            <span className="text-cyan-300 font-bold text-xs flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span className="text-cyan-600 dark:text-cyan-300 font-mono font-bold text-xs flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
               ₹{liveLtp.toFixed(2)}
             </span>
             <button
               type="button"
               onClick={() => onUpdateLeg(index, 'entry_price', liveLtp)}
               title="Copy Live LTP to Entry Price"
-              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 border border-cyan-500/30 transition"
+              className="flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-sans font-bold bg-cyan-50 dark:bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 dark:hover:bg-cyan-500/25 border border-cyan-200 dark:border-cyan-500/30 transition-all shadow-2xs active:scale-95"
             >
               <Zap className="w-2.5 h-2.5" />
               Use
             </button>
           </div>
         ) : (
-          <span className="text-slate-500 text-[11px] font-mono flex items-center gap-1">
-            <TrendingUp className="w-3 h-3 text-slate-600" />
+          <span className="text-slate-400 dark:text-slate-500 text-[11px] font-mono flex items-center gap-1">
+            <TrendingUp className="w-3 h-3 text-slate-400 dark:text-slate-600" />
             —
           </span>
         )}
@@ -208,7 +208,7 @@ const LegRow: React.FC<LegRowProps> = ({
 
       {/* Entry Price Stepper (Decrement / Input / Increment) */}
       <td className="py-2.5 w-36">
-        <div className="flex items-center bg-[#141619] border border-[#2d3239] rounded-md overflow-hidden w-28">
+        <div className="flex items-center bg-slate-50 dark:bg-[#0d1117] border border-slate-200 dark:border-[#232a35] hover:border-slate-300 dark:hover:border-[#353f4e] focus-within:border-indigo-500 rounded-lg overflow-hidden w-28 transition-all">
           <button
             type="button"
             disabled={disabled || currentEntry <= 0.05}
@@ -216,7 +216,7 @@ const LegRow: React.FC<LegRowProps> = ({
               const nextPrice = Math.max(0.05, Math.round((currentEntry - 0.5) * 100) / 100);
               onUpdateLeg(index, 'entry_price', nextPrice);
             }}
-            className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
+            className="px-2 py-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-200/80 dark:hover:bg-[#1c222b] disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-90"
             title="Decrease Price (-0.50)"
           >
             <Minus className="w-3 h-3" />
@@ -229,7 +229,7 @@ const LegRow: React.FC<LegRowProps> = ({
               onUpdateLeg(index, 'entry_price', Number(e.target.value))
             }
             placeholder={liveLtp ? liveLtp.toFixed(2) : '0.00'}
-            className="bg-transparent text-center text-slate-100 text-xs w-full focus:outline-none font-bold py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="bg-transparent text-center text-slate-900 dark:text-slate-100 text-xs w-full focus:outline-none font-bold font-mono py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <button
             type="button"
@@ -238,7 +238,7 @@ const LegRow: React.FC<LegRowProps> = ({
               const nextPrice = Math.round((currentEntry + 0.5) * 100) / 100;
               onUpdateLeg(index, 'entry_price', nextPrice);
             }}
-            className="px-1.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-[#282d34] disabled:opacity-30 disabled:hover:bg-transparent transition active:scale-95"
+            className="px-2 py-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-200/80 dark:hover:bg-[#1c222b] disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-90"
             title="Increase Price (+0.50)"
           >
             <Plus className="w-3 h-3" />
@@ -253,7 +253,7 @@ const LegRow: React.FC<LegRowProps> = ({
             type="button"
             disabled={disabled}
             onClick={() => onRemoveLeg(index)}
-            className="p-1.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all active:scale-90"
             title="Delete Leg"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -299,7 +299,6 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
     const updated = legs.filter((_, i) => i !== index);
     onChange(updated);
   };
-
 
   const handleAutoArrange = () => {
     // Reorder BUY hedge legs first, then SELL legs
@@ -375,15 +374,15 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
   };
 
   return (
-    <div className="bg-[#1e2124] border border-[#2d3239] rounded-xl p-4 shadow-sm">
+    <div className="bg-white dark:bg-[#151921] border border-slate-200 dark:border-[#232a35] rounded-xl p-4 shadow-sm transition-colors duration-200">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-indigo-400" />
-          <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+          <Layers className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+          <h3 className="text-xs font-bold text-slate-800 dark:text-slate-300 uppercase tracking-wider">
             Strategy Legs ({legs.length})
           </h3>
           {legs.length > 1 && (
-            <span className="text-[10px] text-slate-500 font-sans hidden sm:inline">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-sans hidden sm:inline">
               (Drag rows to reorder)
             </span>
           )}
@@ -396,9 +395,9 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
               onClick={handleAutoArrange}
               disabled={disabled || isLoading}
               title="Rearrange legs with BUY orders first to optimize margin benefit"
-              className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-[#141619] hover:bg-[#282d34] text-slate-300 hover:text-white border border-[#2d3239] transition shadow-sm active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200/80 dark:bg-[#0d1117] dark:hover:bg-[#1c222b] text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100 border border-slate-200 dark:border-[#232a35] hover:border-slate-300 dark:hover:border-[#353f4e] transition-all shadow-2xs active:scale-95 disabled:opacity-50"
             >
-              <ArrowUpDown className="w-3.5 h-3.5 text-indigo-400" />
+              <ArrowUpDown className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
               Auto-Arrange (BUY 1st)
             </button>
           )}
@@ -410,17 +409,17 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
                 type="button"
                 onClick={onAnalyze}
                 disabled={disabled || isLoading}
-                className="px-2 py-1 flex items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white shadow-sm border border-indigo-400/30 transition active:scale-95 disabled:opacity-50"
+                className="px-2.5 py-1.5 flex items-center justify-center rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white shadow-sm shadow-indigo-600/25 border border-indigo-500/50 transition-all active:scale-95 disabled:opacity-50"
               >
                 <Play className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : 'fill-current'}`} />
               </button>
 
               {/* Tooltip positioned strictly on TOP */}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-50 whitespace-nowrap animate-in fade-in duration-150">
-                <div className="bg-[#141619] text-white text-[10px] font-semibold py-1 px-2.5 rounded-md border border-[#3b414b] shadow-2xl">
+                <div className="bg-slate-900 dark:bg-[#0d1117] text-white text-[10px] font-semibold py-1 px-2.5 rounded-md border border-slate-700 dark:border-[#333d4d] shadow-2xl">
                   {isLoading ? 'Subscribing & Streaming...' : 'Analyze & Subscribe'}
                 </div>
-                <div className="w-2 h-2 bg-[#141619] border-r border-b border-[#3b414b] rotate-45 -mt-1"></div>
+                <div className="w-2 h-2 bg-slate-900 dark:bg-[#0d1117] border-r border-b border-slate-700 dark:border-[#333d4d] rotate-45 -mt-1"></div>
               </div>
             </div>
           )}
@@ -430,7 +429,7 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
             type="button"
             onClick={handleAddLeg}
             disabled={disabled}
-            className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-indigo-600/15 hover:bg-indigo-600/25 text-indigo-300 border border-indigo-500/30 transition shadow-sm active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-600/15 dark:hover:bg-indigo-600/25 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-all shadow-2xs active:scale-95 disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5" />
             Add Leg
@@ -439,11 +438,11 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
       </div>
 
       {legs.length === 0 ? (
-        <div className="text-center py-8 border border-dashed border-[#2d3239] rounded-lg bg-[#141619]/50">
-          <p className="text-xs text-slate-500">No strategy legs configured.</p>
+        <div className="text-center py-8 border border-dashed border-slate-200 dark:border-[#232a35] rounded-lg bg-slate-50/50 dark:bg-[#0d1117]/50">
+          <p className="text-xs text-slate-500 dark:text-slate-400">No strategy legs configured.</p>
           <button
             onClick={handleAddLeg}
-            className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 font-semibold"
+            className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-semibold"
           >
             + Add Leg to Start
           </button>
@@ -452,19 +451,19 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="text-slate-400 border-b border-[#2d3239] text-[11px] uppercase tracking-wider">
-                <th className="pb-2.5 font-semibold text-slate-500 pl-2 w-6 text-center"></th>
-                <th className="pb-2.5 font-semibold text-slate-500 w-7">#</th>
+              <tr className="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-[#232a35] text-[11px] uppercase tracking-wider">
+                <th className="pb-2.5 font-semibold text-slate-400 dark:text-slate-500 pl-2 w-6 text-center"></th>
+                <th className="pb-2.5 font-semibold text-slate-400 dark:text-slate-500 w-7">#</th>
                 <th className="pb-2.5 font-semibold">Side</th>
                 <th className="pb-2.5 font-semibold">Segment</th>
                 <th className="pb-2.5 font-semibold">Instrument ID</th>
                 <th className="pb-2.5 font-semibold">Lots</th>
-                <th className="pb-2.5 font-semibold text-cyan-300">Live LTP</th>
+                <th className="pb-2.5 font-semibold text-cyan-600 dark:text-cyan-300">Live LTP</th>
                 <th className="pb-2.5 font-semibold">Entry Price (₹)</th>
                 <th className="pb-2.5 text-right font-semibold pr-2">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#262a31] font-mono">
+            <tbody className="divide-y divide-slate-100 dark:divide-[#1c222b] font-mono">
               {legs.map((leg, index) => (
                 <LegRow
                   key={index}
@@ -490,3 +489,4 @@ export const LegsBuilder: React.FC<LegsBuilderProps> = ({
     </div>
   );
 };
+

@@ -27,45 +27,45 @@ export const SummaryMetrics: React.FC<SummaryMetricsProps> = ({ payoff }) => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
       {/* Max Profit */}
-      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3 flex flex-col justify-between hover:border-[#3c434d] transition">
-        <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+      <div className="bg-white dark:bg-[#151921] border border-slate-200 dark:border-[#232a35] rounded-xl p-3 flex flex-col justify-between hover:border-slate-300 dark:hover:border-[#3c434d] transition shadow-sm">
+        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
           <span className="font-medium">Max Profit</span>
-          <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
+          <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
         </div>
-        <div className="text-base font-bold font-mono text-emerald-400">
+        <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400">
           {formatCurrency(payoff.max_profit)}
         </div>
       </div>
 
       {/* Max Loss */}
-      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3 flex flex-col justify-between hover:border-[#3c434d] transition">
-        <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+      <div className="bg-white dark:bg-[#151921] border border-slate-200 dark:border-[#232a35] rounded-xl p-3 flex flex-col justify-between hover:border-slate-300 dark:hover:border-[#3c434d] transition shadow-sm">
+        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
           <span className="font-medium">Max Loss</span>
-          <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" />
+          <ArrowDownRight className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
         </div>
-        <div className="text-base font-bold font-mono text-rose-400">
+        <div className="text-base font-bold font-mono text-rose-600 dark:text-rose-400">
           {formatCurrency(payoff.max_loss)}
         </div>
       </div>
 
       {/* Risk : Reward */}
-      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3 flex flex-col justify-between hover:border-[#3c434d] transition">
-        <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+      <div className="bg-white dark:bg-[#151921] border border-slate-200 dark:border-[#232a35] rounded-xl p-3 flex flex-col justify-between hover:border-slate-300 dark:hover:border-[#3c434d] transition shadow-sm">
+        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
           <span className="font-medium">Risk : Reward</span>
-          <Scale className="w-3.5 h-3.5 text-slate-400" />
+          <Scale className="w-3.5 h-3.5 text-slate-400 dark:text-slate-400" />
         </div>
-        <div className="text-base font-bold font-mono text-slate-100">
+        <div className="text-base font-bold font-mono text-slate-900 dark:text-slate-100">
           {payoff.risk_reward || '—'}
         </div>
       </div>
 
       {/* Probability of Profit (POP) */}
-      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3 flex flex-col justify-between hover:border-[#3c434d] transition">
-        <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+      <div className="bg-white dark:bg-[#151921] border border-slate-200 dark:border-[#232a35] rounded-xl p-3 flex flex-col justify-between hover:border-slate-300 dark:hover:border-[#3c434d] transition shadow-sm">
+        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
           <span className="font-medium">Prob. of Profit</span>
-          <Percent className="w-3.5 h-3.5 text-slate-400" />
+          <Percent className="w-3.5 h-3.5 text-slate-400 dark:text-slate-400" />
         </div>
-        <div className="text-base font-bold font-mono text-slate-100">
+        <div className="text-base font-bold font-mono text-slate-900 dark:text-slate-100">
           {payoff.pop > 0
             ? `${(payoff.pop <= 1 ? payoff.pop * 100 : payoff.pop).toFixed(1)}%`
             : '—'}
@@ -73,14 +73,14 @@ export const SummaryMetrics: React.FC<SummaryMetricsProps> = ({ payoff }) => {
       </div>
 
       {/* Net Premium */}
-      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3 flex flex-col justify-between hover:border-[#3c434d] transition">
-        <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+      <div className="bg-white dark:bg-[#151921] border border-slate-200 dark:border-[#232a35] rounded-xl p-3 flex flex-col justify-between hover:border-slate-300 dark:hover:border-[#3c434d] transition shadow-sm">
+        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
           <span className="font-medium">Net Premium</span>
-          <Wallet className={`w-3.5 h-3.5 ${isNetCredit ? 'text-emerald-400' : 'text-rose-400'}`} />
+          <Wallet className={`w-3.5 h-3.5 ${isNetCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`} />
         </div>
         <div
           className={`text-base font-bold font-mono ${
-            isNetCredit ? 'text-emerald-400' : 'text-rose-400'
+            isNetCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
           }`}
         >
           {formatCurrency(payoff.net_premium)}
@@ -88,12 +88,12 @@ export const SummaryMetrics: React.FC<SummaryMetricsProps> = ({ payoff }) => {
       </div>
 
       {/* Break-Evens */}
-      <div className="bg-[#141619] border border-[#282d34] rounded-lg p-3 flex flex-col justify-between hover:border-[#3c434d] transition">
-        <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+      <div className="bg-white dark:bg-[#151921] border border-slate-200 dark:border-[#232a35] rounded-xl p-3 flex flex-col justify-between hover:border-slate-300 dark:hover:border-[#3c434d] transition shadow-sm">
+        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
           <span className="font-medium">Break-Even(s)</span>
-          <ShieldAlert className="w-3.5 h-3.5 text-slate-400" />
+          <ShieldAlert className="w-3.5 h-3.5 text-slate-400 dark:text-slate-400" />
         </div>
-        <div className="text-xs font-bold font-mono text-slate-200 truncate">
+        <div className="text-xs font-bold font-mono text-slate-800 dark:text-slate-200 truncate">
           {breakEvens.length > 0
             ? breakEvens.map((b) => `₹${b.toFixed(0)}`).join(' | ')
             : 'None'}

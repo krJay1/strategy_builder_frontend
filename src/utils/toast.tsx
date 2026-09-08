@@ -1,5 +1,6 @@
 import React from 'react';
 import { toast, Toaster as SonnerToaster, ToasterProps } from 'sonner';
+import { useTheme } from '../context/ThemeContext';
 
 export interface FormattedError {
   title: string;
@@ -7,25 +8,30 @@ export interface FormattedError {
 }
 
 /**
- * Standard dark-themed Sonner Toaster component with custom styling.
+ * Standard adaptive Sonner Toaster component with custom styling.
  */
 export const Toaster: React.FC<ToasterProps> = ({
   duration = 1000,
   toastOptions,
   ...props
 }) => {
+  const { isDark } = useTheme();
+
   return (
     <SonnerToaster
-      theme="dark"
+      theme={isDark ? 'dark' : 'light'}
       position="top-right"
       duration={duration}
       richColors
       closeButton
       toastOptions={{
         duration,
-        className:
-          '!bg-[#181a1d] !text-slate-100 !border !border-[#2d3239] !shadow-2xl font-sans rounded-xl p-3.5 gap-2',
-        descriptionClassName: '!text-slate-300 font-mono text-[11px] leading-relaxed break-all',
+        className: isDark
+          ? '!bg-[#151921] !text-slate-100 !border !border-[#232a35] !shadow-2xl font-sans rounded-xl p-3.5 gap-2'
+          : '!bg-white !text-slate-900 !border !border-slate-200 !shadow-xl font-sans rounded-xl p-3.5 gap-2',
+        descriptionClassName: isDark
+          ? '!text-slate-300 font-mono text-[11px] leading-relaxed break-all'
+          : '!text-slate-600 font-mono text-[11px] leading-relaxed break-all',
         actionButtonStyle: {
           backgroundColor: '#6366f1',
           color: '#ffffff',

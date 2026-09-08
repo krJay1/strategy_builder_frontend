@@ -233,7 +233,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-slate-100 flex flex-col bg-ambient">
+    <div className="min-h-screen dark:bg-[#0b0e14] bg-[#f8fafc] dark:text-slate-100 text-slate-900 flex flex-col bg-ambient transition-colors duration-200">
       {/* Header */}
       <Header
         wsStatus={wsStatus}

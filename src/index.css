@@ -3,20 +3,62 @@
 @tailwind utilities;
 
 @layer base {
-  html {
+  :root {
+    --bg-canvas: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-subtle: #f1f5f9;
+    --bg-muted: #e2e8f0;
+    --border-default: #e2e8f0;
+    --border-subtle: #f1f5f9;
+    --border-strong: #cbd5e1;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    color-scheme: light;
+  }
+
+  .dark {
+    --bg-canvas: #0b0e14;
+    --bg-card: #151921;
+    --bg-surface: #151921;
+    --bg-subtle: #1c222b;
+    --bg-muted: #242c38;
+    --border-default: #232a35;
+    --border-subtle: #1a2029;
+    --border-strong: #333d4d;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
     color-scheme: dark;
   }
+
   body {
     margin: 0;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: #0A0A0A;
-    color: #F1F5F9;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
     letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Ensure numbers align properly in tables & metrics */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
   }
 }
 
-/* Subtle background radial ambient gradient */
-.bg-ambient {
+/* Subtle background radial ambient gradient (theme adaptive) */
+.dark .bg-ambient {
+  background-image: 
+    radial-gradient(at 10% 10%, rgba(99, 102, 241, 0.04) 0px, transparent 40%),
+    radial-gradient(at 90% 90%, rgba(6, 182, 212, 0.03) 0px, transparent 40%);
+}
+
+.light .bg-ambient,
+:root:not(.dark) .bg-ambient {
   background-image: 
     radial-gradient(at 10% 10%, rgba(99, 102, 241, 0.03) 0px, transparent 40%),
     radial-gradient(at 90% 90%, rgba(6, 182, 212, 0.02) 0px, transparent 40%);
@@ -24,18 +66,27 @@
 
 /* Custom crisp scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0A0A0A;
+  background: transparent;
 }
-::-webkit-scrollbar-thumb {
-  background: #1E293B;
+.dark ::-webkit-scrollbar-thumb {
+  background: #232a35;
   border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #333d4d;
+}
+.light ::-webkit-scrollbar-thumb,
+:root:not(.dark) ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.light ::-webkit-scrollbar-thumb:hover,
+:root:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* Custom sleek range slider */
@@ -43,10 +94,16 @@ input[type="range"].range-slider-custom {
   -webkit-appearance: none;
   background: transparent;
 }
-input[type="range"].range-slider-custom::-webkit-slider-runnable-track {
+.dark input[type="range"].range-slider-custom::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 9999px;
-  background: #282d34;
+  background: #232a35;
+}
+.light input[type="range"].range-slider-custom::-webkit-slider-runnable-track,
+:root:not(.dark) input[type="range"].range-slider-custom::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #e2e8f0;
 }
 input[type="range"].range-slider-custom::-webkit-slider-thumb {
   -webkit-appearance: none;
