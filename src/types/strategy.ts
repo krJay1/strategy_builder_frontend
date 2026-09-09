@@ -36,6 +36,7 @@ export interface UnderlyingRequest {
 }
 
 export interface StrategyRequest {
+  userID?: string;
   underlying: UnderlyingRequest;
   target_date?: string; // YYYY-MM-DD
   legs: LegRequest[];

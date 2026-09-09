@@ -8,7 +8,6 @@ export type WSConnectionStatus = 'connecting' | 'connected' | 'disconnected' | '
 export function useStrategyWebSocket(
   token: string,
   userId: string,
-  clientId: string,
   autoConnect = true,
   strategyWsUrl?: string
 ) {
@@ -19,6 +18,7 @@ export function useStrategyWebSocket(
 
   const socketRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<any>(null);
+  const lastSeqRef = useRef<number>(0);
 
   const connect = useCallback(() => {
     if (socketRef.current) {
@@ -28,11 +28,11 @@ export function useStrategyWebSocket(
 
     setStatus('connecting');
     setError(null);
+    lastSeqRef.current = 0;
 
     // Clean token (strip Bearer if present)
     const cleanToken = token.startsWith('Bearer ') ? token.slice(7).trim() : token.trim();
     const effectiveUserId = (userId || ENV.DEFAULT_USER_ID).trim();
-    const effectiveClientId = (clientId || ENV.DEFAULT_CLIENT_ID).trim();
 
     let baseWsUrl = strategyWsUrl?.trim() || ENV.STRATEGY_WS_URL;
     if (!baseWsUrl) {
@@ -44,15 +44,27 @@ export function useStrategyWebSocket(
     let wsUrl = '';
     try {
       const parsed = new URL(baseWsUrl, window.location.origin);
-      if (effectiveUserId) parsed.searchParams.set('user_id', effectiveUserId);
-      if (cleanToken) parsed.searchParams.set('token', cleanToken);
-      if (effectiveClientId) parsed.searchParams.set('client_id', effectiveClientId);
+      if (effectiveUserId) {
+        parsed.searchParams.set('User-Id', effectiveUserId);
+        parsed.searchParams.set('user_id', effectiveUserId);
+      }
+      if (cleanToken) {
+        parsed.searchParams.set('Access-Token', cleanToken);
+        parsed.searchParams.set('token', cleanToken);
+      }
+      parsed.searchParams.delete('client_id');
+      parsed.searchParams.delete('Client-Id');
       wsUrl = parsed.toString();
     } catch {
       const params = new URLSearchParams();
-      if (effectiveUserId) params.set('user_id', effectiveUserId);
-      if (cleanToken) params.set('token', cleanToken);
-      if (effectiveClientId) params.set('client_id', effectiveClientId);
+      if (effectiveUserId) {
+        params.set('User-Id', effectiveUserId);
+        params.set('user_id', effectiveUserId);
+      }
+      if (cleanToken) {
+        params.set('Access-Token', cleanToken);
+        params.set('token', cleanToken);
+      }
       const queryString = params.toString();
       wsUrl = `${baseWsUrl}${queryString ? (baseWsUrl.includes('?') ? '&' : '?') + queryString : ''}`;
     }
@@ -65,14 +77,13 @@ export function useStrategyWebSocket(
         setStatus('connected');
         setError(null);
 
-        // Also send auth action frame for compatibility
+        // Send auth action frame with token and user_id (no client_id required)
         if (cleanToken || effectiveUserId) {
           ws.send(
             JSON.stringify({
               action: 'auth',
               token: cleanToken,
               user_id: effectiveUserId,
-              client_id: effectiveClientId,
             })
           );
         }
@@ -92,9 +103,23 @@ export function useStrategyWebSocket(
           setLastMessageTime(new Date());
 
           const eventName = (msg.event || msg.type || '').toLowerCase();
-          if ((eventName === 'snapshot' || eventName === 'update') && msg.data) {
+          if (eventName === 'snapshot' && msg.data) {
+            lastSeqRef.current = msg.seq || 0;
             setSnapshot(msg.data);
             setError(null);
+          } else if (eventName === 'update' && msg.data) {
+            // Drop stale or out-of-order frames using monotonic sequence number
+            if (msg.seq && lastSeqRef.current && msg.seq <= lastSeqRef.current) {
+              return;
+            }
+            if (msg.seq) {
+              lastSeqRef.current = msg.seq;
+            }
+            setSnapshot(msg.data);
+            setError(null);
+          } else if (eventName === 'unsubscribed') {
+            setSnapshot(null);
+            lastSeqRef.current = 0;
           } else if (eventName === 'error') {
             const errText = msg.error || (msg as any).message || 'Strategy stream error';
             setError(errText);
@@ -119,7 +144,7 @@ export function useStrategyWebSocket(
       setStatus('error');
       setError(err.message || 'Failed to initialize WebSocket');
     }
-  }, [token, userId, clientId, strategyWsUrl]);
+  }, [token, userId, strategyWsUrl]);
 
   const disconnect = useCallback(() => {
     if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
@@ -127,11 +152,13 @@ export function useStrategyWebSocket(
       socketRef.current.close();
       socketRef.current = null;
     }
+    lastSeqRef.current = 0;
     setStatus('disconnected');
   }, []);
 
   const clearSnapshot = useCallback(() => {
     setSnapshot(null);
+    lastSeqRef.current = 0;
     setError(null);
   }, []);
 
@@ -142,7 +169,7 @@ export function useStrategyWebSocket(
     return () => {
       disconnect();
     };
-  }, [autoConnect, token, userId, clientId, strategyWsUrl, connect, disconnect]);
+  }, [autoConnect, token, userId, strategyWsUrl, connect, disconnect]);
 
   return {
     status,

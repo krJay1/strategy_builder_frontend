@@ -45,7 +45,6 @@ export const createApiClient = (overrideBaseURL?: string) => {
       'Content-Type': 'application/json',
       ...(authHeader ? { Authorization: authHeader } : {}),
       'User-Id': creds.userId || ENV.DEFAULT_USER_ID,
-      'Client-Id': creds.clientId || ENV.DEFAULT_CLIENT_ID,
     },
     timeout: 30000,
   });
@@ -63,22 +62,36 @@ export interface ApiResponse<T> {
 export const strategyApi = {
   // POST /api/v2/strategy (Preview, Validate, Subscribe)
   createStrategy: async (req: StrategyRequest): Promise<StrategyResponse> => {
+    const creds = getStoredCredentials();
+    const payload: StrategyRequest = {
+      ...req,
+      userID: req.userID || creds.userId || ENV.DEFAULT_USER_ID,
+    };
     const client = createApiClient();
-    const res = await client.post<ApiResponse<StrategyResponse>>('/api/v2/strategy', req);
+    const res = await client.post<ApiResponse<StrategyResponse>>('/api/v2/strategy', payload);
     return res.data.data;
   },
 
   // PUT /api/v2/strategy (Update Strategy)
   updateStrategy: async (req: StrategyRequest): Promise<StrategyResponse> => {
+    const creds = getStoredCredentials();
+    const payload: StrategyRequest = {
+      ...req,
+      userID: req.userID || creds.userId || ENV.DEFAULT_USER_ID,
+    };
     const client = createApiClient();
-    const res = await client.put<ApiResponse<StrategyResponse>>('/api/v2/strategy', req);
+    const res = await client.put<ApiResponse<StrategyResponse>>('/api/v2/strategy', payload);
     return res.data.data;
   },
 
   // DELETE /api/v2/strategy (Unsubscribe)
-  unsubscribeStrategy: async (): Promise<any> => {
+  unsubscribeStrategy: async (userId?: string): Promise<any> => {
+    const creds = getStoredCredentials();
+    const effectiveUserId = (userId || creds.userId || ENV.DEFAULT_USER_ID).trim();
     const client = createApiClient();
-    const res = await client.delete<ApiResponse<any>>('/api/v2/strategy');
+    const res = await client.delete<ApiResponse<any>>('/api/v2/strategy', {
+      data: { userID: effectiveUserId },
+    });
     return res.data;
   },
 

@@ -101,7 +101,7 @@ export const App: React.FC = () => {
     snapshot,
     connect,
     clearSnapshot: clearStrategySnapshot,
-  } = useStrategyWebSocket(credentials.token, credentials.userId, credentials.clientId, true);
+  } = useStrategyWebSocket(credentials.token, credentials.userId, true);
 
   // Handle Underlying Change: Unsubscribe previous, clear legs & strategy, subscribe new
   const handleUnderlyingChange = (nextUnderlying: UnderlyingRequest) => {
@@ -121,7 +121,7 @@ export const App: React.FC = () => {
 
       // 3. Unsubscribe strategy in backend if credentials are configured
       if (credentials.token) {
-        strategyApi.unsubscribeStrategy().catch((err) => {
+        strategyApi.unsubscribeStrategy(credentials.userId).catch((err) => {
           console.debug('Strategy unsubscribe on underlying change:', err);
         });
       }
@@ -195,6 +195,7 @@ export const App: React.FC = () => {
     setIsLoading(true);
 
     const payload: StrategyRequest = {
+      userID: (credentials.userId || ENV.DEFAULT_USER_ID).trim(),
       underlying,
       target_date: targetDate || undefined,
       legs: legs.map((leg, idx) => ({
@@ -221,7 +222,7 @@ export const App: React.FC = () => {
   const handleUnsubscribe = async () => {
     setIsUnsubscribing(true);
     try {
-      await strategyApi.unsubscribeStrategy();
+      await strategyApi.unsubscribeStrategy(credentials.userId);
       setStrategyData(null);
       clearStrategySnapshot();
       notify.info('Strategy Unsubscribed', 'Disconnected from real-time stream.');
