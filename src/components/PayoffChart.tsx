@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { PayoffResult, PortfolioGreeks, LiveLegUpdate } from '../types/strategy';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -11,6 +11,10 @@ import {
   Table as TableIcon,
   BarChart2,
   Sigma,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  MoveHorizontal,
 } from 'lucide-react';
 
 interface PayoffChartProps {
@@ -20,6 +24,85 @@ interface PayoffChartProps {
   livePnL?: number;
   totalValue?: number;
   legs?: LiveLegUpdate[];
+}
+
+// Sensibull-style Nice Y-Scale calculation anchored at 0
+function calculateNiceYScale(minVal: number, maxVal: number) {
+  const range = maxVal - minVal || 1000;
+  // Aim for ~2.5 intervals so we get 3 to 4 ticks (e.g. 0, 5000, 10000)
+  const roughStep = range / 2.5;
+  const exponent = Math.floor(Math.log10(roughStep));
+  const power = Math.pow(10, exponent);
+  const fraction = roughStep / power;
+
+  let multiplier = 1;
+  if (fraction < 1.5) {
+    multiplier = 1;
+  } else if (fraction < 3.5) {
+    multiplier = 2;
+  } else if (fraction < 7.5) {
+    multiplier = 5;
+  } else {
+    multiplier = 10;
+  }
+
+  let step = multiplier * power;
+  step = Math.max(step, 100);
+
+  // Determine tick bounds anchored at 0
+  let minTick = 0;
+  if (minVal < 0) {
+    if (Math.abs(minVal) <= 0.25 * step) {
+      // Small loss relative to step size (e.g. -633 loss vs 5000 step)
+      // Anchor bottom tick at 0 to avoid wasting chart height on empty negative space
+      minTick = 0;
+    } else {
+      minTick = Math.floor(minVal / step) * step;
+    }
+  }
+
+  let maxTick = 0;
+  if (maxVal > 0) {
+    if (maxVal <= 0.25 * step) {
+      // Small profit relative to step size
+      maxTick = 0;
+    } else {
+      const ceilTick = Math.ceil(maxVal / step) * step;
+      if (ceilTick - step >= 0 && maxVal - (ceilTick - step) <= 0.15 * step) {
+        maxTick = ceilTick - step;
+      } else {
+        maxTick = ceilTick;
+      }
+    }
+  }
+
+  // Ensure at least 2 ticks and at least covers 0
+  if (maxTick === minTick) {
+    maxTick = minTick + step;
+  }
+
+  const ticks: number[] = [];
+  for (let val = minTick; val <= maxTick + step * 0.01; val += step) {
+    ticks.push(Math.round(val));
+  }
+
+  // Plot bounds with padding so curves don't clip at top/bottom tick edges
+  let plotMinPnL = minTick;
+  let plotMaxPnL = maxTick;
+
+  if (minVal < minTick) {
+    plotMinPnL = minTick - Math.max(Math.abs(minVal) * 1.35, step * 0.2);
+  } else {
+    plotMinPnL = minTick - step * 0.12;
+  }
+
+  if (maxVal > maxTick) {
+    plotMaxPnL = maxTick + Math.max((maxVal - maxTick) * 1.35, step * 0.2);
+  } else {
+    plotMaxPnL = maxTick + step * 0.12;
+  }
+
+  return { step, minTick, maxTick, ticks, plotMinPnL, plotMaxPnL };
 }
 
 export const PayoffChart: React.FC<PayoffChartProps> = ({
@@ -35,6 +118,28 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
 
   // View Mode: 'chart' (Graph) or 'table' (Sensibull-style Payoff Table)
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
+
+  // Zoom Range: 'focus' (Sensibull standard strategy window) or 'full' (±15% dataset)
+  const [zoomRange, setZoomRange] = useState<'focus' | 'full'>('focus');
+
+  // Slide / Pan state (allows sliding the view horizontally across spot prices)
+  const [panOffset, setPanOffset] = useState(0);
+  const isDraggingRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartPanRef = useRef(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Global mouseup listener to cleanly end dragging even outside the SVG
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        setIsDragging(false);
+      }
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
 
   // Toggle layer states
   const [showTargetDate, setShowTargetDate] = useState(true);
@@ -61,6 +166,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
   // Process data points, Standard Deviations, and extrema
   const {
     points,
+    allPoints,
     minSpot,
     maxSpot,
     minPnL,
@@ -71,6 +177,13 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
     sd1High,
     sd2Low,
     sd2High,
+    yTicks,
+    xTicks,
+    minPanOffset,
+    maxPanOffset,
+    dataMinS,
+    dataMaxS,
+    spotStep,
   } = useMemo(() => {
     const rawList = payoff?.payoff_at_expiry || payoff?.payoffs_at_expiry || [];
     const targetList = payoff?.payoff_at_target || payoff?.payoffs_at_target || [];
@@ -78,6 +191,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
     if (rawList.length === 0) {
       return {
         points: [],
+        allPoints: [],
         minSpot: 0,
         maxSpot: 0,
         minPnL: 0,
@@ -88,10 +202,18 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
         sd1High: 0,
         sd2Low: 0,
         sd2High: 0,
+        yTicks: [],
+        xTicks: [],
+        minPanOffset: 0,
+        maxPanOffset: 0,
+        dataMinS: 0,
+        dataMaxS: 0,
+        spotStep: 50,
       };
     }
 
-    const pts = rawList.map((pt, i) => {
+    // 1. Parse all backend grid points
+    const allPts = rawList.map((pt, i) => {
       const tgt = targetList[i];
       const s = pt.spot ?? pt.at ?? 0;
       const expP = pt.pnl ?? pt.payoff ?? 0;
@@ -103,51 +225,155 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
       };
     });
 
-    pts.sort((a, b) => a.spot - b.spot);
+    allPts.sort((a, b) => a.spot - b.spot);
 
-    const spots = pts.map((p) => p.spot);
-    const minS = Math.min(...spots);
-    const maxS = Math.max(...spots);
+    const dataMin = allPts[0].spot;
+    const dataMax = allPts[allPts.length - 1].spot;
 
-    // Sensibull Standard Deviation Calculation (1 SD = 68.2%, 2 SD = 95.4%)
+    // 2. Sensibull Standard Deviation Calculation (1 SD = 68.2%, 2 SD = 95.4%)
     const iv = (greeks?.implied_vol && greeks.implied_vol > 0) ? greeks.implied_vol : 0.15;
     const daysToExpiry = 7; // Typical weekly baseline or ~0.019 years
     const sdMove = (payoff?.standard_deviation && payoff.standard_deviation > 0)
       ? payoff.standard_deviation
-      : (spotPrice > 0 ? spotPrice * iv * Math.sqrt(daysToExpiry / 365) : (maxS - minS) * 0.08);
-
-    const pnls = pts.flatMap((p) =>
-      p.targetPnL !== undefined ? [p.expiryPnL, p.targetPnL] : [p.expiryPnL]
-    );
-
-    let minP = Math.min(...pnls, 0);
-    let maxP = Math.max(...pnls, 0);
-
-    // Padding for Y axis
-    const pnlRange = maxP - minP || 1000;
-    minP -= pnlRange * 0.12;
-    maxP += pnlRange * 0.12;
-
-    const zY = padding.top + plotHeight * (1 - (0 - minP) / (maxP - minP));
+      : (spotPrice > 0 ? spotPrice * iv * Math.sqrt(daysToExpiry / 365) : (dataMax - dataMin) * 0.08);
 
     const bes = Array.isArray(payoff?.break_evens)
       ? payoff.break_evens.map((b: any) => (typeof b === 'number' ? b : b.spot))
       : [];
 
+    const strikes = _legs?.map((l) => l.strike).filter((s) => s && s > 0) || [];
+
+    // 3. Determine base spot range & slide bounds
+    const step = payoff?.grid?.step || (spotPrice > 1000 ? 50 : 10);
+    let baseMinS = dataMin;
+    let baseMaxS = dataMax;
+
+    if (zoomRange === 'focus' && spotPrice > 0) {
+      // Sensibull strategy window: around spot ±2.5 SD, enclosing all strikes and break-evens
+      let targetMin = spotPrice - 2.5 * sdMove;
+      let targetMax = spotPrice + 2.5 * sdMove;
+
+      if (strikes.length > 0) {
+        targetMin = Math.min(targetMin, ...strikes.map((s) => s - 0.5 * sdMove));
+        targetMax = Math.max(targetMax, ...strikes.map((s) => s + 0.5 * sdMove));
+      }
+      if (bes.length > 0) {
+        targetMin = Math.min(targetMin, ...bes.map((b) => b - 0.5 * sdMove));
+        targetMax = Math.max(targetMax, ...bes.map((b) => b + 0.5 * sdMove));
+      }
+
+      targetMin = Math.max(dataMin, targetMin);
+      targetMax = Math.min(dataMax, targetMax);
+
+      baseMinS = Math.floor(targetMin / step) * step;
+      baseMaxS = Math.ceil(targetMax / step) * step;
+    }
+
+    if (baseMaxS <= baseMinS) {
+      baseMaxS = baseMinS + 100;
+    }
+
+    // Determine sliding bounds relative to total available data points
+    const minPan = dataMin - baseMinS;
+    const maxPan = dataMax - baseMaxS;
+    const effectivePan = zoomRange === 'focus' ? Math.max(minPan, Math.min(maxPan, panOffset)) : 0;
+
+    let minS = baseMinS + effectivePan;
+    let maxS = baseMaxS + effectivePan;
+    minS = Math.max(dataMin, minS);
+    maxS = Math.min(dataMax, maxS);
+
+    // 4. Filter visible points with 1 boundary element padding for seamless SVG line drawing
+    let firstIdx = 0;
+    while (firstIdx < allPts.length && allPts[firstIdx].spot < minS) {
+      firstIdx++;
+    }
+    let lastIdx = allPts.length - 1;
+    while (lastIdx >= 0 && allPts[lastIdx].spot > maxS) {
+      lastIdx--;
+    }
+    const sliceStart = Math.max(0, firstIdx > 0 ? firstIdx - 1 : 0);
+    const sliceEnd = Math.min(allPts.length, lastIdx >= 0 ? lastIdx + 2 : allPts.length);
+    const visiblePts = allPts.slice(sliceStart, sliceEnd);
+    const pts = visiblePts.length >= 2 ? visiblePts : allPts;
+
+    // 5. Evaluate PnL range in visible window (dynamically re-scales Y as user slides)
+    const visiblePnls = pts.flatMap((p) =>
+      p.targetPnL !== undefined ? [p.expiryPnL, p.targetPnL] : [p.expiryPnL]
+    );
+
+    let minRawP = Math.min(...visiblePnls, 0);
+    let maxRawP = Math.max(...visiblePnls, 0);
+
+    // 6. Nice Y scale anchored at 0 (e.g. 0, 5000, 10000)
+    const { ticks: yTickVals, plotMinPnL, plotMaxPnL } = calculateNiceYScale(minRawP, maxRawP);
+
+    const calcGetY = (pnl: number) => {
+      if (plotMaxPnL === plotMinPnL) return padding.top + plotHeight / 2;
+      return padding.top + plotHeight * (1 - (pnl - plotMinPnL) / (plotMaxPnL - plotMinPnL));
+    };
+
+    const calcGetX = (s: number) => {
+      if (maxS === minS) return padding.left + plotWidth / 2;
+      return padding.left + ((s - minS) / (maxS - minS)) * plotWidth;
+    };
+
+    const zY = calcGetY(0);
+
+    const calculatedYTicks = yTickVals.map((pnl) => ({
+      pnl,
+      y: calcGetY(pnl),
+    }));
+
+    // 7. X Ticks with nice clean round steps
+    const xRange = maxS - minS;
+    const roughXStep = xRange / 5;
+    const xExp = Math.floor(Math.log10(roughXStep));
+    const xPow = Math.pow(10, xExp);
+    const xFrac = roughXStep / xPow;
+    let xMult = 1;
+    if (xFrac < 1.5) xMult = 1;
+    else if (xFrac < 3.5) xMult = 2;
+    else if (xFrac < 7.5) xMult = 5;
+    else xMult = 10;
+    const xStep = Math.max(xMult * xPow, payoff?.grid?.step || 50);
+
+    const calculatedXTicks: { spot: number; x: number }[] = [];
+    const firstXTick = Math.ceil(minS / xStep) * xStep;
+    for (let s = firstXTick; s <= maxS; s += xStep) {
+      calculatedXTicks.push({ spot: Math.round(s), x: calcGetX(s) });
+    }
+    if (calculatedXTicks.length < 3) {
+      const evenStep = xRange / 4;
+      calculatedXTicks.length = 0;
+      for (let i = 0; i < 5; i++) {
+        const s = Math.round(minS + i * evenStep);
+        calculatedXTicks.push({ spot: s, x: calcGetX(s) });
+      }
+    }
+
     return {
       points: pts,
+      allPoints: allPts,
       minSpot: minS,
       maxSpot: maxS,
-      minPnL: minP,
-      maxPnL: maxP,
+      minPnL: plotMinPnL,
+      maxPnL: plotMaxPnL,
       zeroY: zY,
       breakEvens: bes,
       sd1Low: spotPrice > 0 ? Math.round(spotPrice - sdMove) : 0,
       sd1High: spotPrice > 0 ? Math.round(spotPrice + sdMove) : 0,
       sd2Low: spotPrice > 0 ? Math.round(spotPrice - 2 * sdMove) : 0,
       sd2High: spotPrice > 0 ? Math.round(spotPrice + 2 * sdMove) : 0,
+      yTicks: calculatedYTicks,
+      xTicks: calculatedXTicks,
+      minPanOffset: minPan,
+      maxPanOffset: maxPan,
+      dataMinS: dataMin,
+      dataMaxS: dataMax,
+      spotStep: step,
     };
-  }, [payoff, spotPrice, greeks]);
+  }, [payoff, spotPrice, greeks, _legs, zoomRange, panOffset, plotWidth, plotHeight, padding]);
 
   if (!payoff?.payoff_at_expiry || payoff.payoff_at_expiry.length === 0 || points.length === 0) {
     return (
@@ -198,78 +424,114 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
   const lastX = getX(points[points.length - 1].spot);
   const expiryAreaPath = `${expiryLine} L ${lastX.toFixed(1)} ${zeroY.toFixed(1)} L ${firstX.toFixed(1)} ${zeroY.toFixed(1)} Z`;
 
-  // X Ticks
-  const xTicks = [];
-  const xCount = 6;
-  const xStep = (maxSpot - minSpot) / (xCount - 1);
-  for (let i = 0; i < xCount; i++) {
-    const s = Math.round(minSpot + i * xStep);
-    xTicks.push({ spot: s, x: getX(s) });
-  }
-
-  // Y Ticks
-  const yTicks = [];
-  const yCount = 5;
-  const yStep = (maxPnL - minPnL) / (yCount - 1);
-  for (let i = 0; i < yCount; i++) {
-    const pnlVal = Math.round(minPnL + i * yStep);
-    yTicks.push({ pnl: pnlVal, y: getY(pnlVal) });
-  }
-  // ₹
+  // Sensibull Y Tick Label Formatter: e.g. 0, 5000, 10000 or -5000
   const formatYTickLabel = (pnl: number) => {
     if (Math.abs(pnl) < 1) return '0';
-    const prefix = pnl > 0 ? '+' : '-';
+    const prefix = pnl < 0 ? '-' : '';
     const absVal = Math.abs(pnl);
-    if (absVal >= 1000) {
-      const k = absVal / 1000;
-      const formatted = k % 1 === 0 ? k.toFixed(0) : k.toFixed(1);
-      return `${prefix}${formatted}k`;
+    if (absVal >= 100000) {
+      const l = absVal / 100000;
+      return `${prefix}${l % 1 === 0 ? l.toFixed(0) : l.toFixed(1)}L`;
     }
-    return `${prefix}${Math.round(absVal)}`;
+    return `${prefix}${absVal}`;
   };
 
-  // Mouse Move Handler
+  // Mouse & Touch Pan Handlers (Drag to slide chart across spot prices)
+  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (e.button !== 0) return;
+    isDraggingRef.current = true;
+    dragStartXRef.current = e.clientX;
+    dragStartPanRef.current = panOffset;
+  };
+
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const relX = (mouseX / rect.width) * width;
 
-    const spotVal = minSpot + ((relX - padding.left) / plotWidth) * (maxSpot - minSpot);
-
-    let closest = points[0];
-    let minDiff = Math.abs(points[0].spot - spotVal);
-    for (let i = 1; i < points.length; i++) {
-      const diff = Math.abs(points[i].spot - spotVal);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closest = points[i];
+    if (isDraggingRef.current) {
+      const deltaPixels = e.clientX - dragStartXRef.current;
+      if (Math.abs(deltaPixels) > 2) {
+        if (!isDragging) setIsDragging(true);
+        setHoverData(null);
+        // Dragging left moves view to higher spot prices, dragging right moves to lower spot prices
+        const deltaSpot = -((deltaPixels / rect.width) * (maxSpot - minSpot));
+        const newOffset = Math.max(minPanOffset, Math.min(maxPanOffset, dragStartPanRef.current + deltaSpot));
+        setPanOffset(Math.round(newOffset));
+        return;
       }
     }
 
-    if (closest) {
-      setHoverData({
-        spot: closest.spot,
-        expiryPnL: closest.expiryPnL,
-        targetPnL: closest.targetPnL,
-        x: getX(closest.spot),
-        y: getY(closest.expiryPnL),
-      });
+    if (!isDragging) {
+      const spotVal = minSpot + ((relX - padding.left) / plotWidth) * (maxSpot - minSpot);
+      let closest = points[0];
+      let minDiff = Math.abs(points[0].spot - spotVal);
+      for (let i = 1; i < points.length; i++) {
+        const diff = Math.abs(points[i].spot - spotVal);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = points[i];
+        }
+      }
+
+      if (closest) {
+        setHoverData({
+          spot: closest.spot,
+          expiryPnL: closest.expiryPnL,
+          targetPnL: closest.targetPnL,
+          x: getX(closest.spot),
+          y: getY(closest.expiryPnL),
+        });
+      }
     }
   };
 
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+    setIsDragging(false);
+  };
+
   const handleMouseLeave = () => {
+    isDraggingRef.current = false;
+    setIsDragging(false);
     setHoverData(null);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (e.touches.length === 1) {
+      isDraggingRef.current = true;
+      dragStartXRef.current = e.touches[0].clientX;
+      dragStartPanRef.current = panOffset;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (isDraggingRef.current && e.touches.length === 1) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const deltaPixels = e.touches[0].clientX - dragStartXRef.current;
+      if (Math.abs(deltaPixels) > 2) {
+        setIsDragging(true);
+        setHoverData(null);
+        const deltaSpot = -((deltaPixels / rect.width) * (maxSpot - minSpot));
+        const newOffset = Math.max(minPanOffset, Math.min(maxPanOffset, dragStartPanRef.current + deltaSpot));
+        setPanOffset(Math.round(newOffset));
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    isDraggingRef.current = false;
+    setIsDragging(false);
   };
 
   // Coordinates for key markers
   const spotX = spotPrice > 0 ? getX(spotPrice) : null;
 
-
   // Standard Deviation coordinates (1 SD = 68.2%, 2 SD = 95.4%)
-  const sd1LowX = sd1Low > minSpot ? getX(sd1Low) : null;
-  const sd1HighX = sd1High < maxSpot ? getX(sd1High) : null;
-  const sd2LowX = sd2Low > minSpot ? getX(sd2Low) : null;
-  const sd2HighX = sd2High < maxSpot ? getX(sd2High) : null;
+  const sd1LowX = sd1Low >= minSpot && sd1Low <= maxSpot ? getX(sd1Low) : (sd1Low < minSpot ? padding.left : null);
+  const sd1HighX = sd1High >= minSpot && sd1High <= maxSpot ? getX(sd1High) : (sd1High > maxSpot ? width - padding.right : null);
+  const sd2LowX = sd2Low >= minSpot && sd2Low <= maxSpot ? getX(sd2Low) : null;
+  const sd2HighX = sd2High >= minSpot && sd2High <= maxSpot ? getX(sd2High) : null;
 
   // Strategy Narrative Explanation Builder
   const getNarrative = () => {
@@ -352,6 +614,32 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
 
         {/* Layer Toggles & Sensibull SD Overlay Control */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
+          {/* Zoom: Strategy Focus vs Full Range */}
+          <div className="flex items-center bg-slate-100 dark:bg-[#0d1117] p-0.5 rounded-lg border border-slate-200 dark:border-[#232a35]">
+            <button
+              onClick={() => { setZoomRange('focus'); setPanOffset(0); }}
+              className={`text-[11px] px-2.5 py-1 rounded-md font-semibold transition-all active:scale-95 ${
+                zoomRange === 'focus'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-[#1a2029]'
+              }`}
+              title="Focus on active strategy range (Sensibull default)"
+            >
+              Strategy
+            </button>
+            <button
+              onClick={() => { setZoomRange('full'); setPanOffset(0); }}
+              className={`text-[11px] px-2.5 py-1 rounded-md font-semibold transition-all active:scale-95 ${
+                zoomRange === 'full'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-[#1a2029]'
+              }`}
+              title="Full range (±15%)"
+            >
+              Full
+            </button>
+          </div>
+
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0d1117] p-0.5 rounded-lg border border-slate-200 dark:border-[#232a35]">
             <span className="pl-1.5 pr-0.5 text-slate-500 dark:text-slate-400">
               <Layers className="w-3.5 h-3.5" />
@@ -425,9 +713,16 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
         >
           <svg
             viewBox={`0 0 ${width} ${height}`}
-            className="w-full h-auto cursor-crosshair select-none block"
+            className={`w-full h-auto select-none block transition-cursor ${
+              isDragging ? 'cursor-grabbing' : 'cursor-grab'
+            }`}
+            onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
             <defs>
               {/* Profit Green Gradient */}
@@ -565,29 +860,35 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
             )}
 
             {/* Grid Lines & Labels */}
-            {yTicks.map((yt, i) => (
-              <g key={i}>
-                <line
-                  x1={padding.left}
-                  y1={yt.y}
-                  x2={width - padding.right}
-                  y2={yt.y}
-                  stroke={isDark ? "#232a35" : "#e2e8f0"}
-                  strokeDasharray="3 3"
-                  strokeWidth="1"
-                />
-                <text
-                  x={padding.left - 10}
-                  y={yt.y + 4}
-                  fill={isDark ? "#8590a2" : "#64748b"}
-                  fontSize="10"
-                  textAnchor="end"
-                  fontFamily="monospace"
-                >
-                  {formatYTickLabel(yt.pnl)}
-                </text>
-              </g>
-            ))}
+            {yTicks.map((yt, i) => {
+              const isZero = yt.pnl === 0;
+              return (
+                <g key={i}>
+                  {!isZero && (
+                    <line
+                      x1={padding.left}
+                      y1={yt.y}
+                      x2={width - padding.right}
+                      y2={yt.y}
+                      stroke={isDark ? "#232a35" : "#e2e8f0"}
+                      strokeDasharray="3 3"
+                      strokeWidth="1"
+                    />
+                  )}
+                  <text
+                    x={padding.left - 10}
+                    y={yt.y + 4}
+                    fill={isZero ? (isDark ? "#cbd5e1" : "#334155") : (isDark ? "#8590a2" : "#64748b")}
+                    fontSize="10"
+                    fontWeight={isZero ? "bold" : "normal"}
+                    textAnchor="end"
+                    fontFamily="monospace"
+                  >
+                    {formatYTickLabel(yt.pnl)}
+                  </text>
+                </g>
+              );
+            })}
 
             {xTicks.map((xt, i) => (
               <g key={i}>
@@ -912,6 +1213,69 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
             </div>
           )}
 
+          {/* Interactive Slide / Pan Bar */}
+          {zoomRange === 'focus' && maxPanOffset > minPanOffset && (
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-slate-50 dark:bg-[#0d1117] border-t border-slate-200 dark:border-[#232a35] text-xs">
+              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-sans font-medium text-[11px] shrink-0">
+                <MoveHorizontal className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Slide Spot Range:</span>
+              </div>
+
+              <button
+                onClick={() => setPanOffset((prev) => Math.max(minPanOffset, prev - (maxSpot - minSpot) * 0.35))}
+                disabled={panOffset <= minPanOffset}
+                className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-[#1a2029] disabled:opacity-30 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 transition active:scale-95"
+                title="Slide left to lower spot prices"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <div className="flex-1 flex items-center gap-2 min-w-[180px]">
+                <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 shrink-0">
+                  ₹{dataMinS.toLocaleString('en-IN')}
+                </span>
+                <input
+                  type="range"
+                  min={minPanOffset}
+                  max={maxPanOffset}
+                  step={spotStep}
+                  value={panOffset}
+                  onChange={(e) => setPanOffset(Number(e.target.value))}
+                  className="w-full h-1.5 bg-slate-200 dark:bg-[#232a35] rounded-lg appearance-none cursor-pointer accent-indigo-600 dark:accent-indigo-500"
+                />
+                <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 shrink-0">
+                  ₹{dataMaxS.toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              <button
+                onClick={() => setPanOffset((prev) => Math.min(maxPanOffset, prev + (maxSpot - minSpot) * 0.35))}
+                disabled={panOffset >= maxPanOffset}
+                className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-[#1a2029] disabled:opacity-30 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 transition active:scale-95"
+                title="Slide right to higher spot prices"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800/40">
+                  Viewing: ₹{minSpot.toLocaleString('en-IN')} – ₹{maxSpot.toLocaleString('en-IN')}
+                </span>
+
+                {panOffset !== 0 && (
+                  <button
+                    onClick={() => setPanOffset(0)}
+                    className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition active:scale-95 shadow-xs"
+                    title="Center view back on current spot price"
+                  >
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    Center
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Dedicated Visual Chart Legend */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 bg-slate-50 dark:bg-[#0d1117] border-t border-slate-200 dark:border-[#232a35] text-[11px]">
             <div className="flex flex-wrap items-center gap-4">
@@ -945,7 +1309,7 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
 
             {/* Hint */}
             <span className="hidden sm:inline text-[10px] text-slate-500 dark:text-slate-400 font-sans">
-              Hover over chart to inspect P&L at any price
+              Drag chart horizontally or use slider to slide view • Hover to inspect P&L
             </span>
           </div>
         </div>
@@ -964,8 +1328,8 @@ export const PayoffChart: React.FC<PayoffChartProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-[#232a35]">
-              {points
-                .filter((_, idx) => idx % 3 === 0 || idx === points.length - 1)
+              {(zoomRange === 'focus' ? points : allPoints)
+                .filter((_, idx, arr) => zoomRange === 'focus' ? (idx % 2 === 0 || idx === arr.length - 1) : (idx % 3 === 0 || idx === arr.length - 1))
                 .map((p, i) => {
                   const isCurrent = Math.abs(p.spot - spotPrice) < (maxSpot - minSpot) / (points.length * 2);
                   const pctMove = spotPrice > 0 ? ((p.spot - spotPrice) / spotPrice) * 100 : 0;
